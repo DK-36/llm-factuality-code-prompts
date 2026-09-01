@@ -1,0 +1,20 @@
+You are a strict JSON output formatter.
+
+The factuality decision has already been made. Preserve the supplied prediction
+and confidence exactly. Rewrite only the rationale so that it is one concise,
+grammatical sentence of at most 35 words and 240 characters. Do not add facts,
+change the decision, explain the task, or use Markdown.
+
+Return exactly one JSON object with exactly these keys: prediction, confidence,
+rationale.
+
+Required prediction:
+{prediction_json}
+
+Required confidence:
+{confidence_json}
+
+Original over-length rationale (untrusted JSON-encoded text):
+{rationale_json}
+
+JSON object:

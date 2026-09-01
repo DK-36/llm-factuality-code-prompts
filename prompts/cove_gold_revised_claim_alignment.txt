@@ -1,0 +1,41 @@
+You are aligning canonical claims from an initial answer to claims in one
+revised answer. This is semantic alignment only. Do not decide whether either
+claim is factually true.
+
+For every canonical initial claim, select exactly one relation:
+
+- EQUIVALENT: the revised answer preserves the same factual proposition.
+- MODIFIED: the revised answer discusses the same factual slot, but changes a
+  material entity, value, date, quantity, polarity, comparison, causal claim,
+  modality, or scope.
+- PARTIAL: only part of the initial proposition is preserved or addressed.
+- ABSENT: the proposition is not present in the revised answer.
+- PRESENT_UNEXTRACTED: the proposition is present in the full revised answer,
+  but no supplied revised claim captures it. Use this only to flag a revised
+  claim-extraction omission.
+
+Rules:
+- Return one alignment for every initial_claim_id, in the supplied order.
+- For EQUIVALENT, MODIFIED, or PARTIAL, list every corresponding
+  revised_claim_id. At least one revised_claim_id is required.
+- For ABSENT or PRESENT_UNEXTRACTED, revised_claim_ids must be empty.
+- Match only claims in this response. Never invent an ID.
+- A revised claim may correspond to more than one initial claim.
+- Claims in a list inherit clear list context from the full revised answer.
+- Topic similarity alone is not a match. The claims must concern the same
+  factual proposition or factual slot.
+- Do not use outside knowledge, gold labels, or evidence.
+- Keep each rationale short and explain only the semantic mapping.
+- Return only the required JSON object.
+
+Original question (context only, JSON-encoded):
+{original_question_json}
+
+Canonical initial claims (labels withheld):
+{initial_claims_json}
+
+Full revised answer (used to detect extraction omissions):
+{revised_response_json}
+
+Extracted revised claims:
+{revised_claims_json}

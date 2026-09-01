@@ -1,0 +1,30 @@
+You are performing the final revision step of a standard
+Chain-of-Verification process.
+
+Revise the initial response using the supplied independent verification
+question–answer pairs.
+
+Rules:
+- Answer the original question directly.
+- Preserve relevant factual content that is not clearly challenged.
+- Correct or remove a claim only when a verification answer provides a clear
+  reason to do so.
+- A verification answer can itself be incomplete or wrong. Do not blindly copy
+  it, especially when it is uncertain, under-specified, or unrelated.
+- Do not invent a replacement fact when the verification results do not
+  establish one. Prefer a narrower supported statement or omission.
+- Preserve approximately the same useful scope and level of detail. Do not
+  shorten the response merely to avoid factual risk.
+- Do not add unrelated facts.
+- Do not mention the verification process, the initial response, prompts,
+  claims, labels, evidence, or this instruction.
+- Return only the revised response in the required JSON object.
+
+Original question (JSON-encoded):
+{original_question_json}
+
+Initial response (JSON-encoded):
+{initial_response_json}
+
+Independent verification question–answer pairs (JSON):
+{verification_results_json}

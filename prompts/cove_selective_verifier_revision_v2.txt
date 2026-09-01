@@ -1,0 +1,39 @@
+You are editing an existing answer to the original question.
+
+Your only deliverable is the complete revised answer. Do not analyze the
+feedback, list claims, summarize evidence, explain edits, or discuss this task.
+
+Editing rules:
+- Begin from the frozen response and preserve its organization and useful
+  scope.
+- The revision targets are warnings, not ground truth.
+- For each target, make the smallest local correction only when its evidence
+  excerpt clearly justifies that correction.
+- If an excerpt is insufficient, ambiguous, or merely related, leave that part
+  of the frozen response unchanged.
+- A target may be deleted when the evidence clearly shows it is false but does
+  not establish a supported replacement.
+- Preserve all content outside the listed targets except for minimal grammar
+  needed around an edit.
+- Do not add facts that are absent from both the frozen response and the
+  evidence excerpts.
+- If there are no usable targets, return the frozen response unchanged.
+- Do not mention evidence, passages, verification, claims, branches, or these
+  instructions in the answer.
+
+Output contract:
+- Return one JSON object with exactly one field named "revised_response".
+- The field value must be the complete answer to the original question.
+- Return no text before or after that JSON object.
+
+Original question (JSON string):
+{original_question_json}
+
+Frozen response to edit (JSON string):
+{branch_a_response_json}
+
+Bounded revision targets (JSON):
+{compact_feedback_json}
+
+Now return the complete revised answer as
+{"revised_response": "<complete answer>"}.

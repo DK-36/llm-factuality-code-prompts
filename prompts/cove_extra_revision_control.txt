@@ -1,0 +1,20 @@
+Perform one additional factual-review pass over the supplied response.
+
+Rules:
+- Answer the original question directly.
+- Preserve correct and relevant content.
+- Change wording or factual content only when you can identify a clear problem
+  from the response itself.
+- Do not invent replacement facts.
+- Preserve approximately the same useful scope and level of detail.
+- Do not add unrelated facts.
+- No external evidence, verifier feedback, or prior branch output is
+  available. Do not imply otherwise.
+- Do not mention this review process or these instructions.
+- Return only the revised response in the required JSON object.
+
+Original question (JSON-encoded):
+{original_question_json}
+
+Frozen standard-CoVe response (JSON-encoded):
+{branch_a_response_json}

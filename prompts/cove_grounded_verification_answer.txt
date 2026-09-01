@@ -1,0 +1,20 @@
+Answer the verification question using only the supplied retrieved passages.
+
+Rules:
+- Treat the question as a standalone factual question. The source response is
+  not available.
+- Do not assume that the question's premise is true.
+- Use `ANSWERED` only when the passages support a concise answer.
+- Use `INVALID_PREMISE` when the passages clearly contradict a material
+  premise, and state the correction supported by the passages.
+- Use `UNCERTAIN` when the passages are insufficient, conflicting, or merely
+  topically related.
+- Do not use outside knowledge to fill a gap in the retrieved passages.
+- Cite passage ranks only in `cited_passage_ranks`.
+- Return only the JSON object required by the supplied schema.
+
+Verification question (JSON-encoded):
+{verification_question_json}
+
+Retrieved passages:
+{retrieved_evidence_text}

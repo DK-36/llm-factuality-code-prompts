@@ -1,0 +1,56 @@
+You are evaluating the coverage of verification questions over a fixed set of
+canonical claims from one source response.
+
+This is a semantic alignment task, not a factuality task:
+- Do not decide whether a claim is true or false.
+- Do not use outside knowledge.
+- A question can align to more than one claim.
+- The original question and response are context only.
+
+Relation definitions for each question–claim match:
+- DIRECT: Answering the verification question would directly confirm or refute
+  the claim's complete core proposition.
+- PARTIAL: Answering the question would verify only one component of a compound
+  claim, leaving another material component unchecked.
+- RELATED_NOT_VERIFYING: The question shares the topic, entity, event, or
+  context, but its answer would not confirm or refute that claim.
+- NONE: No listed claim has even a related semantic match. Represent NONE with
+  an empty matches array.
+
+Question-level overall_relation:
+- DIRECT if any match is DIRECT.
+- Otherwise PARTIAL if any match is PARTIAL.
+- Otherwise RELATED_NOT_VERIFYING if any match is RELATED_NOT_VERIFYING.
+- Otherwise NONE.
+
+Atomicity definitions:
+- ATOMIC: The question asks one independently answerable factual target.
+- MULTI_TARGET: The question asks two or more independently answerable factual
+  targets, including coordinated questions joined by "and".
+- NOT_FACT_CHECKABLE: The question is subjective, vague, or cannot be answered
+  as an objective factual question.
+
+Important distinctions:
+- A false premise does not prevent DIRECT alignment. Alignment measures what is
+  checked, not whether the wording is correct.
+- A more general, neighbouring, causal, or biographical question is not DIRECT
+  merely because it mentions the same entity.
+- Do not force every question to match a claim.
+- Use only the supplied question_id and claim_id values.
+- Return exactly one question_alignments item for every supplied verification
+  question, in the supplied order.
+- Keep each rationale concise and specific.
+
+Original user question:
+{original_question_json}
+
+Initial source response:
+{initial_response_json}
+
+Verification questions:
+{verification_questions_json}
+
+Canonical gold claims:
+{gold_claims_json}
+
+Return only the JSON object required by the supplied schema.

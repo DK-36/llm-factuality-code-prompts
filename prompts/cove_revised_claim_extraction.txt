@@ -1,0 +1,25 @@
+You are extracting atomic factual claims from one revised answer.
+
+Extract every externally verifiable factual statement in the revised answer.
+
+Rules:
+- Each output item must contain exactly one factual proposition.
+- Split conjunctions when their parts can be true or false independently.
+- Preserve negation, uncertainty, quantities, dates, locations, entity names,
+  comparisons, causal relations, and temporal scope.
+- Make each claim understandable without the surrounding paragraph. Resolve a
+  pronoun to its explicit entity only when the revised answer makes the
+  referent clear.
+- Preserve the meaning of the revised answer. Do not correct, verify, weaken,
+  strengthen, or infer claims.
+- Keep claims in the order in which they appear.
+- Exclude questions, instructions, purely subjective praise, vague
+  evaluations, and statements that cannot be externally checked.
+- Do not use outside knowledge.
+- Return only the required JSON object.
+
+Original question (context only, JSON-encoded):
+{original_question_json}
+
+Revised answer to decompose (JSON-encoded):
+{revised_response_json}

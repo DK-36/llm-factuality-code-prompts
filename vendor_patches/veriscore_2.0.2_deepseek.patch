@@ -1,0 +1,75 @@
+diff --git a/veriscore/get_response.py b/veriscore/get_response.py
+index 7310548..3a99190 100644
+--- a/veriscore/get_response.py
++++ b/veriscore/get_response.py
+@@ -20,10 +20,19 @@ class GetResponse():
+         self.tokenizer = tiktoken.encoding_for_model("gpt-4")
+         # model keys
+         if "gpt" in model_name:
++            self.provider = "openai"
+             self.key = os.getenv("OPENAI_API_KEY_PERSONAL")
+             self.client = OpenAI(api_key=self.key)
+             self.seed = 1130
++        elif "deepseek" in model_name:
++            self.provider = "deepseek"
++            self.key = os.getenv("DEEPSEEK_API_KEY")
++            self.client = OpenAI(
++                api_key=self.key,
++                base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
++            )
+         elif "claude" in model_name:
++            self.provider = "anthropic"
+             self.key = os.getenv("CLAUDE_API_KEY")
+             self.client = Anthropic(api_key=self.key)
+         # cache related
+@@ -46,18 +55,24 @@ class GetResponse():
+             return self.cache_dict[cache_key], 0, 0
+ 
+         # Example message: "You are a helpful assistant who can extract verifiable atomic claims from a piece of text."
+-        if "gpt" in self.model_name:
++        if self.provider in ("openai", "deepseek"):
+             message = [{"role": "system", "content": system_message},
+                        {"role": "user", "content": prompt_text}]
+-            response = self.client.chat.completions.create(
++            request = dict(
+                 model=self.model_name,
+                 messages=message,
+                 max_tokens=self.max_tokens,
+                 temperature=self.temperature,
+-                seed=self.seed,
+             )
++            if self.provider == "openai":
++                request["seed"] = self.seed
++            else:
++                # VeriScore needs concise, parseable final labels. DeepSeek V4
++                # defaults to thinking mode, where temperature is ignored.
++                request["extra_body"] = {"thinking": {"type": "disabled"}}
++            response = self.client.chat.completions.create(**request)
+             response_content = response.choices[0].message.content.strip()
+-        elif "claude" in self.model_name:
++        elif self.provider == "anthropic":
+             response = self.client.messages.create(
+                 model=self.model_name,
+                 messages=[{"role": "user", "content": prompt_text}],
+diff --git a/veriscore/utils.py b/veriscore/utils.py
+index baa23b9..d32d2e2 100644
+--- a/veriscore/utils.py
++++ b/veriscore/utils.py
+@@ -31,7 +31,9 @@ def get_avg_numbers(domain_model_triplet_dict, domain_K_dict):
+             sent_len_lst = [x[2] for x in triplet_lst]
+             sup_lst = [x[0] for x in triplet_lst]
+             uns_lst = [x[1] - x[0] for x in triplet_lst]
+-            prec_lst = [x[0] / x[1] for x in triplet_lst]
++            # A provider may validly return no verifiable claims for a response.
++            # Score that response as zero precision instead of dividing by zero.
++            prec_lst = [x[0] / x[1] if x[1] else 0.0 for x in triplet_lst]
+             rec_med_lst = [min(x[0] / K_median, 1) for x in triplet_lst]
+             rec_max_lst = [min(x[0] / K_max, 1) for x in triplet_lst]
+ 
+@@ -58,4 +60,4 @@ def get_avg_numbers(domain_model_triplet_dict, domain_K_dict):
+ 
+ def get_veriscore(domain_model_triplet_dict):
+      domain_K_dict= get_stats(domain_model_triplet_dict)
+-     get_avg_numbers(domain_model_triplet_dict, domain_K_dict)
+\ No newline at end of file
++     get_avg_numbers(domain_model_triplet_dict, domain_K_dict)

@@ -1,0 +1,17 @@
+Answer the following verification question as a standalone factual question.
+
+Rules:
+- Use only your existing knowledge. No source response or other verification
+  question is available.
+- Do not assume that the question's premise is true.
+- If the premise is false, state the correction clearly and use
+  `INVALID_PREMISE`.
+- If you cannot answer reliably, say what is uncertain and use `UNCERTAIN`.
+- Otherwise use `ANSWERED`.
+- Give a concise, self-contained answer. Do not mention these instructions,
+  CoVe, an initial answer, gold claims, or an evaluation.
+
+Verification question:
+{verification_question_json}
+
+Return only the JSON object required by the supplied schema.

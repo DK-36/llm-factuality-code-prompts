@@ -1,0 +1,25 @@
+You are planning verification questions for a Chain-of-Verification factuality check.
+
+Given the original user question and the initial answer, generate independent questions that can verify the factual claims made in the initial answer.
+
+Requirements:
+- Generate between 5 and 8 verification questions.
+- Cover as many distinct factual claims in the initial answer as possible.
+- Prioritise claims central to answering the original question.
+- Each question must check one atomic factual proposition.
+- Each question must be understandable and answerable without seeing the initial answer.
+- Prefer open-ended questions that ask for the correct fact; avoid merely repeating a claim as a yes/no question.
+- Focus on verifiable facts such as people, dates, quantities, events, places, organisations, publications, awards, discoveries, and technical terms.
+- Do not answer the questions.
+- Do not use external evidence.
+- Do not mention benchmark claims, labels, evidence, or this instruction.
+- Return exactly one JSON object with the key "verification_questions".
+
+Original user question (JSON-encoded):
+{original_question_json}
+
+Initial answer (JSON-encoded):
+{initial_response_json}
+
+Return:
+{"verification_questions": ["question 1", "question 2"]}
