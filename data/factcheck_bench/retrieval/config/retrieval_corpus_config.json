@@ -1,0 +1,105 @@
+{
+  "schema_version": "fcb_retrieval_config_v1",
+  "corpus": {
+    "name": "benchmark-grounded closed source-document corpus",
+    "scope": "full",
+    "query_source": "gold_claim_text_only",
+    "include_all_benchmark_evidence_urls": true
+  },
+  "split": {
+    "definition_version": "first_20_raw_responses_dev_v1",
+    "development_raw_response_count": 20,
+    "expected_total_matched_claims": 589,
+    "expected_development_matched_claims": 121,
+    "expected_heldout_matched_claims": 468,
+    "expected_total_matched_responses": 91,
+    "expected_development_matched_responses": 19,
+    "expected_heldout_matched_responses": 72
+  },
+  "url_canonicalisation": {
+    "version": "fcb_url_canonicalisation_v1",
+    "remove_fragment": true,
+    "normalise_trailing_slash": true,
+    "tracking_parameter_names": [
+      "dclid",
+      "fbclid",
+      "gclid",
+      "igshid",
+      "mc_cid",
+      "mc_eid",
+      "msclkid",
+      "vero_conv",
+      "vero_id",
+      "yclid"
+    ],
+    "tracking_parameter_prefixes": [
+      "utm_"
+    ]
+  },
+  "fetch": {
+    "user_agent": "FactCheckBenchCorpusBuilder/1.0 (+research; no-auth)",
+    "robots_user_agent": "FactCheckBenchCorpusBuilder",
+    "timeout_seconds": 20.0,
+    "max_retries": 2,
+    "backoff_seconds": 1.0,
+    "max_retry_wait_seconds": 30.0,
+    "per_host_delay_seconds": 0.5,
+    "max_redirects": 8,
+    "max_response_bytes": 26214400,
+    "checkpoint_every": 25
+  },
+  "chunking": {
+    "version": "boundary_aware_regex_tokens_v1",
+    "tokenizer": "unicode_word_or_punctuation_regex_v1",
+    "chunk_size_tokens": 384,
+    "chunk_overlap_tokens": 64,
+    "minimum_boundary_fraction": 0.7
+  },
+  "alignment": {
+    "version": "gold_evidence_passage_alignment_v1",
+    "sentence_substring_candidate_threshold": 0.5,
+    "sentence_substring_auto_accept_threshold": 1.0,
+    "fuzzy_candidate_threshold": 0.55,
+    "fuzzy_ambiguity_margin": 0.03,
+    "maximum_fuzzy_candidates": 3,
+    "automatic_methods": [
+      "exact_normalized",
+      "sentence_substring"
+    ],
+    "fuzzy_candidates_require_audit": true
+  },
+  "leakage_policy": {
+    "evaluation_only_fields": [
+      "human_label",
+      "gold_evidence_text",
+      "gold_stance",
+      "gold_url_mapping"
+    ],
+    "forbidden_ranking_inputs": [
+      "human_label",
+      "gold_evidence_text",
+      "gold_stance",
+      "gold_url_mapping",
+      "revised_claim"
+    ],
+    "passage_index_field_allowlist": [
+      "schema_version",
+      "passage_id",
+      "doc_id",
+      "canonical_url",
+      "final_url",
+      "title",
+      "section",
+      "text",
+      "token_count",
+      "token_start",
+      "token_end",
+      "char_start",
+      "char_end",
+      "page",
+      "page_start",
+      "page_end",
+      "chunk_config_fingerprint"
+    ]
+  }
+}

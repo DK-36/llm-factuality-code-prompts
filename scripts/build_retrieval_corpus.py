@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Experiment A's benchmark-grounded closed source-document corpus.
+"""Build Study I's benchmark-grounded closed source-document corpus.
 
 Every subcommand is data-only: this script never imports Ollama and never runs
 the verifier.  Network access occurs only for the explicitly named
@@ -48,7 +48,7 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
         "--scope",
         choices=("full",),
         default="full",
-        help="Experiment A is defined only over canonical full scope.",
+        help="Study I is defined only over the canonical full scope.",
     )
     parser.add_argument(
         "--config",
@@ -70,7 +70,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Prepare the benchmark-grounded closed source-document corpus for "
-            "FactCheck-Bench Experiment A."
+            "FactCheck-Bench Study I."
         )
     )
     subparsers = parser.add_subparsers(dest="stage", required=True)
@@ -84,17 +84,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Fetch/freeze source documents. This is the only networked stage.",
     )
     _add_common(fetch)
-    fetch.add_argument(
-        "--limit",
-        type=int,
-        default=None,
-        help="Process at most N canonical URL candidates.",
-    )
-    fetch.add_argument(
-        "--smoke-test",
-        action="store_true",
-        help="Use the configured small URL limit unless --limit is supplied.",
-    )
     fetch_mode = fetch.add_mutually_exclusive_group()
     fetch_mode.add_argument(
         "--resume",
@@ -124,10 +113,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_common(passages)
     passages.add_argument("--chunk-size", type=int, default=None)
     passages.add_argument("--chunk-overlap", type=int, default=None)
-    passages.add_argument(
-        "--limit", type=int, default=None, help="Process at most N successful docs."
-    )
-    passages.add_argument("--smoke-test", action="store_true")
 
     qrels = subparsers.add_parser("build-qrels")
     _add_common(qrels)
@@ -148,17 +133,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "configuration selection is complete before unsealing held-out QA."
         ),
     )
-    qrels.add_argument(
-        "--limit", type=int, default=None, help="Map at most N matched claims."
-    )
-    qrels.add_argument("--smoke-test", action="store_true")
 
     summary = subparsers.add_parser("summarize-corpus")
     _add_common(summary)
 
     args = parser.parse_args(argv)
-    if getattr(args, "limit", None) is not None and args.limit <= 0:
-        parser.error("--limit must be positive")
     if (
         args.stage == "build-qrels"
         and args.split in {"heldout", "all"}
@@ -194,14 +173,11 @@ def run_stage(args: argparse.Namespace) -> dict[str, Any]:
     if args.stage == "fetch-corpus":
         from factcheck_bench_corpus_fetch import fetch_corpus
 
-        limit = args.limit
-        if args.smoke_test and limit is None:
-            limit = int(config["fetch"]["smoke_test_url_limit"])
         return fetch_corpus(
             PROJECT_ROOT,
             paths,
             config,
-            limit=limit,
+            limit=None,
             resume=not args.refetch,
             dry_run=args.dry_run,
         )
@@ -215,37 +191,21 @@ def run_stage(args: argparse.Namespace) -> dict[str, Any]:
             dry_run=args.dry_run,
         )
     if args.stage == "build-passages":
-        limit = args.limit
-        if args.smoke_test and limit is None:
-            limit = int(config["fetch"]["smoke_test_url_limit"])
         return build_passages(
             PROJECT_ROOT,
             paths,
             config,
             chunk_size=args.chunk_size,
             chunk_overlap=args.chunk_overlap,
-            limit=limit,
-            artifact_namespace=("smoke" if limit is not None else "canonical"),
             dry_run=args.dry_run,
         )
     if args.stage == "build-qrels":
-        limit = args.limit
-        if args.smoke_test and limit is None:
-            limit = int(config["fetch"]["smoke_test_url_limit"])
-        smoke_passages = paths.root / "smoke" / "passages.jsonl"
         return build_qrels(
             PROJECT_ROOT,
             paths,
             config,
             split_scope=args.split,
             confirm_config_frozen=args.confirm_config_frozen,
-            limit=limit,
-            artifact_namespace=("smoke" if limit is not None else "canonical"),
-            input_passages=(
-                smoke_passages
-                if args.smoke_test and smoke_passages.exists()
-                else paths.passages
-            ),
             dry_run=args.dry_run,
         )
     if args.stage == "summarize-corpus":

@@ -1,0 +1,42 @@
+{
+  "schema_version": "fcb_cove_branch_d2_config_v1",
+  "experiment": "Study II: active bounded Branch D targeted revision",
+  "scope": "full",
+  "parent_branch_config_path": "data/factcheck_bench/cove/config/cove_branch_experiment_config.json",
+  "branch": {
+    "name": "evidence_guided_targeted_revision",
+    "artifact_namespace": "d2",
+    "feedback_source": "deterministic_branch_d_candidate_selection_compacted_without_model_calls",
+    "feedback_policy_version": "bounded_actionable_feedback_v1",
+    "maximum_feedback_claims_per_response": 2,
+    "maximum_passages_per_claim": 1,
+    "maximum_passage_characters": 1400,
+    "maximum_rationale_characters": 360,
+    "passage_selection": "ranks_explicitly_mentioned_in_verifier_rationale_then_retrieval_rank",
+    "claim_priority": "verifier_confidence_desc_then_revised_claim_id",
+    "revision_prompt_path": "prompts/cove_selective_verifier_revision_v2.txt",
+    "revision_prompt_version": "cove_selective_verifier_revision_v2",
+    "revision_result_schema_version": "cove_branch_d2_revision_result_v1",
+    "revision_base": "frozen_branch_a_standard_revision",
+    "revision_context": [
+      "bounded_target_claim_text",
+      "bounded_verifier_rationale",
+      "single_retrieved_evidence_excerpt"
+    ],
+    "withheld_fields": [
+      "branch_b_answers",
+      "branch_b_revised_response",
+      "branch_c_revised_response",
+      "gold_claim",
+      "human_label",
+      "gold_evidence",
+      "gold_url_mapping",
+      "qrels",
+      "B6b_gold_revised_alignment",
+      "unselected_verifier_feedback",
+      "retrieval_scores",
+      "verifier_confidence"
+    ],
+    "extra_revision_calls": 1
+  }
+}

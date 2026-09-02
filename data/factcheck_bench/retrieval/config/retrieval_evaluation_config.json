@@ -1,0 +1,59 @@
+{
+  "schema_version": "fcb_retrieval_evaluation_config_v1",
+  "scope": "dev",
+  "query_source": "gold_claim_text_only",
+  "ranking_passage_fields": [
+    "text"
+  ],
+  "maximum_rank": 100,
+  "metric_cutoffs": [
+    1,
+    3,
+    5,
+    10,
+    20
+  ],
+  "primary_selection_metric": "source_document.conditional_recall_at_5",
+  "secondary_confirmation_metric": "strict_passage.recall_at_5",
+  "bm25": {
+    "version": "robertson_sparck_jones_bm25_v1",
+    "k1": 1.2,
+    "b": 0.75,
+    "tokenizer": "unicode_alphanumeric_casefold_v1",
+    "stemming": false,
+    "stopword_removal": false
+  },
+  "dense": {
+    "backend": "ollama_embed_v1",
+    "model": "nomic-embed-text:v1.5",
+    "expected_digest_prefix": "0a109f422b47",
+    "query_prefix": "search_query: ",
+    "document_prefix": "search_document: ",
+    "batch_size": 32,
+    "truncate": false,
+    "similarity": "cosine_via_unit_normalized_dot_product"
+  },
+  "hybrid": {
+    "method": "reciprocal_rank_fusion",
+    "rrf_constant": 60,
+    "fusion_depth": 100,
+    "components": [
+      "bm25",
+      "dense_nomic"
+    ]
+  },
+  "bootstrap": {
+    "unit": "response_id",
+    "samples": 5000,
+    "seed": 42,
+    "confidence_level": 0.95
+  },
+  "evaluation_policy": {
+    "source_qrels": "benchmark_associated_successfully_frozen_source_documents",
+    "strict_passage_qrels": "automatic_positive_qrels_only",
+    "unreviewed_candidates_are_relevant": false,
+    "claims_without_qrels_are_retrieval_misses": false,
+    "all_dev_source_recovery_counts_corpus_absence_as_zero": true,
+    "heldout_is_sealed": true
+  }
+}

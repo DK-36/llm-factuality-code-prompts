@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Deterministic post-hoc synthesis for the frozen CoVe held-out experiment.
+"""Deterministic diagnostic synthesis for the frozen CoVe held-out experiment.
 
-The stages in this module make no model calls and never modify branch A/B/C/D2
-artifacts.  They materialise a NON_FACTUAL correction funnel, locate evidence
-effects by controlled stage, assign an explicit failure taxonomy, and produce
-a three-layer report that keeps human, cross-model, and silver evidence apart.
+The stages in this module make no model calls and never modify Branch A/B/C/D artifacts. They materialise the reported NON_FACTUAL correction funnel, locate evidence effects by controlled stage, assign an explicit failure taxonomy, and produce a three-layer report that keeps human, cross-model, and silver evidence separate. Branch D is stored internally as ``d2`` for frozen-schema compatibility.
 """
 
 from __future__ import annotations
@@ -599,15 +596,15 @@ def analyze_evidence_stage_effects(split: str, dry_run: bool) -> int:
         {
             "stage_id": "E1_claim_level_verification",
             "controlled_contrast": "same claims/model/prompt family; evidence source changes",
-            "evidence_condition": "no evidence vs oracle vs Hybrid retrieved top-5",
+            "evidence_condition": "No Evidence vs Benchmark-associated Evidence vs Hybrid retrieved top-5",
             "result": {
                 "metrics": verifier_metrics,
                 "paired_intervals": paired,
             },
             "evidence_strength": "HUMAN_ANCHORED",
             "interpretation": (
-                "Oracle and retrieved evidence improve verifier classification over "
-                "no evidence; retrieved-minus-oracle remains inconclusive."
+                "Benchmark-associated and retrieved evidence improve verifier classification over "
+                "No Evidence; retrieved-minus-benchmark-associated remains inconclusive."
             ),
         },
         {
@@ -691,7 +688,6 @@ def analyze_evidence_stage_effects(split: str, dry_run: bool) -> int:
             "B-minus-A isolates answer grounding but Branch B has one fallback and format-only recovery sensitivity.",
             "C-minus-A controls for one additional unguided revision call.",
             "D-minus-C is the primary selective-feedback contrast under equal extra-call count.",
-            "D-minus-B changes intervention timing and is exploratory, not a single-variable causal contrast.",
         ],
         "source_fingerprints": source_fingerprints(all_sources + [CONFIG_PATH]),
         "generated_at": utc_now(),
@@ -709,7 +705,7 @@ def analyze_evidence_stage_effects(split: str, dry_run: bool) -> int:
         "",
         "| Stage | Controlled comparison | What can be concluded |",
         "|---|---|---|",
-        "| Claim verifier | No evidence / Oracle / Retrieved | Evidence improves human-labelled claim classification; retrieved versus oracle is inconclusive. |",
+        "| Claim verifier | No Evidence / Benchmark-associated Evidence / Retrieved Evidence | Evidence improves human-labelled claim classification; retrieved versus benchmark-associated evidence is inconclusive. |",
         "| Question planning | Shared B1 questions | Evidence has no opportunity to change planning in the frozen design. |",
         "| Verification answers | B versus A, identical questions | Evidence changes answer behaviour, but self-reported status is not correctness. |",
         "| Grounded CoVe revision | B minus A | Main stable effect is improved factual preservation, not a clearly resolved correction gain. |",
@@ -1005,7 +1001,7 @@ def build_three_layer_report(split: str, dry_run: bool) -> int:
                 item["qwen_gold_disagreements"] for item in v2["branch_summaries"].values()
             ),
             "claims_supported": [
-                "Experiment A evidence-condition verifier comparison uses human labels.",
+                "Study I evidence-condition verifier comparison uses human labels.",
                 "Exact-retained revised claims inherit labels without semantic judgment.",
             ],
             "claims_not_supported": [
@@ -1150,7 +1146,7 @@ def build_three_layer_report(split: str, dry_run: bool) -> int:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run one deterministic post-hoc CoVe analysis stage."
+        description="Run one deterministic CoVe diagnostic-synthesis stage."
     )
     parser.add_argument("stage", choices=STAGES)
     parser.add_argument("--scope", choices=("full",), default="full")

@@ -1,0 +1,395 @@
+{
+  "schema_version": "fcb_cove_experiment_config_v1",
+  "experiment": "Study II: CoVe mechanism evaluation",
+  "scope": "full",
+  "split_policy": {
+    "unit": "response_id",
+    "development_source_record_start": 1,
+    "development_source_record_end": 20,
+    "heldout_source_record_start": 21,
+    "exclude_responses_without_gold_claims": true,
+    "expected": {
+      "raw_responses": 94,
+      "eligible_responses": 92,
+      "excluded_no_claim_responses": 2,
+      "dev_responses": 20,
+      "heldout_responses": 72,
+      "all_claims": 678,
+      "binary_claims": 631,
+      "matched_claims": 589,
+      "dev_all_claims": 168,
+      "dev_binary_claims": 156,
+      "dev_matched_claims": 121,
+      "heldout_all_claims": 510,
+      "heldout_binary_claims": 475,
+      "heldout_matched_claims": 468
+    }
+  },
+  "question_planning": {
+    "prompt_path": "prompts/cove_question_planning.txt",
+    "prompt_version": "cove_question_planning_v1",
+    "result_schema_version": "cove_question_plan_result_v1",
+    "output_schema_version": "cove_question_plan_output_v1",
+    "minimum_questions": 5,
+    "maximum_questions": 8,
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 768,
+    "think": false,
+    "timeout_seconds": 180.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "question_claim_alignment": {
+    "prompt_path": "prompts/cove_question_claim_alignment.txt",
+    "prompt_version": "cove_question_claim_alignment_v1",
+    "result_schema_version": "cove_question_claim_alignment_result_v1",
+    "output_schema_version": "cove_question_claim_alignment_output_v1",
+    "relation_labels": [
+      "DIRECT",
+      "PARTIAL",
+      "RELATED_NOT_VERIFYING",
+      "NONE"
+    ],
+    "atomicity_labels": [
+      "ATOMIC",
+      "MULTI_TARGET",
+      "NOT_FACT_CHECKABLE"
+    ],
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 4096,
+    "think": false,
+    "timeout_seconds": 300.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "independent_verification_answering": {
+    "prompt_path": "prompts/cove_independent_verification_answer.txt",
+    "prompt_version": "cove_independent_verification_answer_v1",
+    "result_schema_version": "cove_independent_verification_answer_result_v1",
+    "output_schema_version": "cove_independent_verification_answer_output_v1",
+    "answer_status_labels": [
+      "ANSWERED",
+      "UNCERTAIN",
+      "INVALID_PREMISE"
+    ],
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 512,
+    "think": false,
+    "timeout_seconds": 180.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "answer_claim_evaluation": {
+    "prompt_path": "prompts/cove_answer_claim_evaluation.txt",
+    "prompt_version": "cove_answer_claim_evaluation_v1",
+    "result_schema_version": "cove_answer_claim_evaluation_result_v1",
+    "output_schema_version": "cove_answer_claim_evaluation_output_v1",
+    "alignment_validity_labels": [
+      "VALID_DIRECT",
+      "VALID_PARTIAL",
+      "INVALID"
+    ],
+    "evidence_sufficiency_labels": [
+      "SUFFICIENT",
+      "PARTIAL",
+      "INSUFFICIENT"
+    ],
+    "answer_correctness_labels": [
+      "CORRECT",
+      "PARTIALLY_CORRECT",
+      "INCORRECT",
+      "INSUFFICIENT",
+      "UNVERIFIABLE"
+    ],
+    "answer_stance_labels": [
+      "SUPPORTS_CLAIM",
+      "CHALLENGES_CLAIM",
+      "MIXED",
+      "NO_POSITION"
+    ],
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 768,
+    "think": false,
+    "timeout_seconds": 180.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "response_revision": {
+    "prompt_path": "prompts/cove_response_revision.txt",
+    "prompt_version": "cove_response_revision_v1",
+    "result_schema_version": "cove_response_revision_result_v1",
+    "output_schema_version": "cove_response_revision_output_v1",
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 4096,
+    "think": false,
+    "timeout_seconds": 300.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "revised_claim_extraction": {
+    "prompt_path": "prompts/cove_revised_claim_extraction.txt",
+    "prompt_version": "cove_revised_claim_extraction_v1",
+    "result_schema_version": "cove_revised_claim_extraction_result_v1",
+    "output_schema_version": "cove_revised_claim_extraction_output_v1",
+    "minimum_claims": 0,
+    "maximum_claims": 64,
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 4096,
+    "think": false,
+    "timeout_seconds": 300.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "revised_claim_alignment": {
+    "prompt_path": "prompts/cove_gold_revised_claim_alignment.txt",
+    "prompt_version": "cove_gold_revised_claim_alignment_v1",
+    "result_schema_version": "cove_gold_revised_claim_alignment_result_v1",
+    "output_schema_version": "cove_gold_revised_claim_alignment_output_v1",
+    "relation_labels": [
+      "EQUIVALENT",
+      "MODIFIED",
+      "PARTIAL",
+      "ABSENT",
+      "PRESENT_UNEXTRACTED"
+    ],
+    "maximum_initial_claims": 64,
+    "maximum_revised_claims": 64,
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 8192,
+    "think": false,
+    "timeout_seconds": 420.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "revised_claim_factuality": {
+    "retrieval_config_path": "data/factcheck_bench/retrieval/config/retrieval_evaluation_config.json",
+    "retriever": "hybrid_rrf",
+    "evidence_top_k": 5,
+    "prompt_path": "prompts/cove_revised_claim_factuality.txt",
+    "prompt_version": "cove_revised_claim_factuality_hybrid_top5_v1",
+    "result_schema_version": "cove_revised_claim_factuality_result_v1",
+    "output_schema_version": "cove_revised_claim_factuality_output_v1",
+    "prediction_labels": [
+      "FACTUAL",
+      "NON_FACTUAL",
+      "UNKNOWN"
+    ],
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "num_predict": 256,
+    "think": false,
+    "timeout_seconds": 180.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "factuality_audit_policy": {
+    "high_impact_initial_outcomes": [
+      "ERROR_CORRECTED_CANDIDATE",
+      "ERROR_STILL_PRESENT_AFTER_CHANGE_CANDIDATE",
+      "FACTUAL_DAMAGED_CANDIDATE"
+    ],
+    "high_impact_added_outcomes": [
+      "NEW_ERROR_CANDIDATE"
+    ]
+  },
+  "leakage_policy": {
+    "model_input_fields": [
+      "original_question",
+      "initial_response"
+    ],
+    "evaluation_only_fields": [
+      "gold_claim",
+      "human_label",
+      "gold_evidence",
+      "gold_evidence_text",
+      "gold_evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "alignment_model_input_fields": [
+      "original_question",
+      "initial_response",
+      "verification_question_id",
+      "verification_question_text",
+      "gold_claim_id",
+      "gold_claim_text"
+    ],
+    "alignment_withheld_fields": [
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "gold_evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "verification_answer_model_input_fields": [
+      "verification_question"
+    ],
+    "verification_answer_withheld_fields": [
+      "original_question",
+      "initial_response",
+      "other_verification_questions",
+      "gold_claim",
+      "human_label",
+      "gold_evidence",
+      "gold_evidence_text",
+      "gold_evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "question_claim_alignment",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "answer_claim_evaluation_model_input_fields": [
+      "verification_question",
+      "verification_answer",
+      "candidate_gold_claim",
+      "oracle_evidence_text"
+    ],
+    "answer_claim_evaluation_withheld_fields": [
+      "human_label",
+      "human_label_bool",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "b3_self_reported_answer_status",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "response_revision_model_input_fields": [
+      "original_question",
+      "initial_response",
+      "verification_questions",
+      "verification_answers"
+    ],
+    "response_revision_withheld_fields": [
+      "gold_claim",
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "b2_question_claim_alignment",
+      "b3_self_reported_answer_status",
+      "b4_answer_claim_evaluation",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "revised_claim_extraction_model_input_fields": [
+      "original_question",
+      "revised_response"
+    ],
+    "revised_claim_extraction_withheld_fields": [
+      "initial_response",
+      "gold_claim",
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "verification_questions",
+      "verification_answers",
+      "b2_question_claim_alignment",
+      "b4_answer_claim_evaluation",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "revised_claim_alignment_model_input_fields": [
+      "original_question",
+      "canonical_initial_claim_ids_and_text",
+      "revised_response",
+      "extracted_revised_claim_ids_and_text"
+    ],
+    "revised_claim_alignment_withheld_fields": [
+      "initial_response",
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "verification_questions",
+      "verification_answers",
+      "b2_question_claim_alignment",
+      "b4_answer_claim_evaluation",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "revised_claim_factuality_model_input_fields": [
+      "revised_claim_text",
+      "frozen_hybrid_top5_passage_text"
+    ],
+    "revised_claim_factuality_withheld_fields": [
+      "original_question",
+      "initial_response",
+      "full_revised_response",
+      "canonical_initial_claim",
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "b6b_alignment_relation",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ],
+    "independent_adjudication_model_input_fields": [
+      "revised_claim_text",
+      "frozen_hybrid_top5_passage_text"
+    ],
+    "independent_adjudication_withheld_fields": [
+      "primary_b6c_prediction",
+      "primary_b6c_confidence",
+      "primary_b6c_rationale",
+      "original_question",
+      "initial_response",
+      "full_revised_response",
+      "canonical_initial_claim",
+      "human_label",
+      "human_label_bool",
+      "gold_evidence",
+      "gold_evidence_text",
+      "evidence_stance",
+      "gold_url_mapping",
+      "retrieval_qrels",
+      "b6b_alignment_relation",
+      "benchmark_revised_response",
+      "benchmark_revised_claim"
+    ]
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "schema_version": "fcb_cove_posthoc_analysis_config_v1",
+  "experiment": "Study II: deterministic held-out mechanism synthesis",
+  "scope": "full",
+  "split": "heldout",
+  "active_branches": ["a", "b", "c", "d2"],
+  "expected_cohort": {
+    "responses": 72,
+    "initial_claims": 510,
+    "binary_initial_claims": 475,
+    "non_factual_initial_claims": 100,
+    "factual_initial_claims": 375
+  },
+  "non_factual_funnel": {
+    "branch": "a",
+    "useful_question_relations": ["DIRECT", "PARTIAL"],
+    "usable_alignment_validity": ["VALID_DIRECT", "VALID_PARTIAL"],
+    "usable_evidence_sufficiency": ["SUFFICIENT", "PARTIAL"],
+    "broad_challenge_correctness": ["CORRECT", "PARTIALLY_CORRECT"],
+    "strict_challenge_correctness": ["CORRECT"],
+    "required_challenge_stance": "CHALLENGES_CLAIM",
+    "strict_challenge_requires_evidence_sufficiency": "SUFFICIENT",
+    "revision_action_relations": ["MODIFIED", "PARTIAL", "PRESENT_UNEXTRACTED", "ABSENT"],
+    "strict_correction_outcome": "ERROR_CORRECTED_CANDIDATE",
+    "deletion_outcome": "ERROR_REMOVED_BY_DELETION_CANDIDATE"
+  },
+  "failure_taxonomy": {
+    "priority": [
+      "SUCCESS_STRICT_CORRECTION",
+      "SUCCESS_ERROR_REMOVAL_BY_DELETION",
+      "EVALUATOR_LABEL_CONFLICT",
+      "FINAL_FACTUALITY_UNRESOLVED",
+      "PLANNER_MISS",
+      "VERIFICATION_NOT_EVALUABLE",
+      "VERIFICATION_DID_NOT_PRODUCE_SUPPORTED_CHALLENGE",
+      "REVISION_OMISSION_AFTER_CHALLENGE",
+      "REVISION_UNSUCCESSFUL_AFTER_CHALLENGE"
+    ],
+    "interpretation": "Deterministic earliest-observed bottleneck among unsuccessful standard-CoVe NON_FACTUAL claims; B2/B4/B6 labels remain silver unless an Exact-retained gold anchor applies."
+  },
+  "evidence_stage_effects": {
+    "claim_verifier_contrasts": [
+      "oracle_minus_no_evidence",
+      "retrieved_minus_no_evidence",
+      "retrieved_minus_oracle"
+    ],
+    "verification_answer_contrast": "branch_b_grounded_answers_minus_branch_a_parametric_answers",
+    "grounded_revision_contrast": "b_minus_a",
+    "extra_revision_control_contrast": "c_minus_a",
+    "selective_feedback_contrast": "d_minus_c"
+  },
+  "three_layer_policy": {
+    "layers": [
+      "HUMAN_ANCHORED",
+      "CROSS_MODEL_SUPPORTED",
+      "SILVER_FULL_COVERAGE"
+    ],
+    "aggregation_rule": "report_separately_never_collapse_into_one_score",
+    "human_anchored_sources": [
+      "benchmark initial human labels",
+      "normalized-exact retained claims with inherited binary human labels"
+    ],
+    "cross_model_sources": [
+      "blind targeted Qwen-Llama factuality agreement",
+      "blind targeted alignment agreement as an auxiliary reliability diagnostic"
+    ],
+    "silver_sources": [
+      "B2 question-claim alignment",
+      "B4 evidence-grounded answer evaluation",
+      "B6b initial-revised alignment",
+      "B6c retrieved-evidence factuality"
+    ]
+  },
+  "isolation": {
+    "model_calls": false,
+    "original_branch_artifacts_modified": false,
+    "posthoc_stages_write_only_under_validation": true,
+    "later_stage_reads_earlier_stage_outputs": {
+      "V7_funnel": [],
+      "V8_evidence_stage_effects": ["V1 paired statistics"],
+      "V9_failure_taxonomy": ["V7 funnel", "V2 exact-retained", "V6 validation tiers"],
+      "V10_three_layer_report": ["V1", "V2", "V6", "V7", "V8", "V9"]
+    }
+  }
+}

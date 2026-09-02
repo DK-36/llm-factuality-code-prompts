@@ -1,0 +1,100 @@
+{
+  "schema_version": "fcb_cove_external_veriscore_config_v1",
+  "experiment": "Study II: isolated external response-level VeriScore evaluation",
+  "scope": "full",
+  "splits": {
+    "dev": {
+      "expected_responses": 20
+    },
+    "heldout": {
+      "expected_responses": 72
+    }
+  },
+  "conditions": [
+    {
+      "condition_id": "initial",
+      "display_name": "Initial response",
+      "veriscore_model_name": "fcb_initial"
+    },
+    {
+      "condition_id": "a",
+      "display_name": "A: Standard CoVe",
+      "veriscore_model_name": "fcb_branch_a_standard_cove"
+    },
+    {
+      "condition_id": "b",
+      "display_name": "B: Evidence-grounded CoVe",
+      "veriscore_model_name": "fcb_branch_b_grounded_cove"
+    },
+    {
+      "condition_id": "c",
+      "display_name": "C: Extra-revision control",
+      "veriscore_model_name": "fcb_branch_c_extra_revision"
+    },
+    {
+      "condition_id": "d2",
+      "display_name": "D: Bounded selective verifier revision",
+      "veriscore_model_name": "fcb_branch_d_selective_verifier"
+    }
+  ],
+  "prompt_source": "FactCheck-Bench_long_form_QA",
+  "official_protocol": {
+    "name": "VeriScore",
+    "paper": "Song, Kim, and Iyyer (Findings of EMNLP 2024)",
+    "paper_url": "https://aclanthology.org/2024.findings-emnlp.552/",
+    "official_repository": "https://github.com/Yixiao-Song/VeriScore",
+    "official_repository_commit": "8714bca27b944b9659d6a966cdb92fb6fff8f72d",
+    "expected_package_version": "2.0.2",
+    "extraction_model": "deepseek-v4-pro",
+    "verification_model": "deepseek-v4-pro",
+    "model_access_mode": "DeepSeek OpenAI-compatible Chat Completions API",
+    "provider": "DeepSeek",
+    "provider_base_url": "https://api.deepseek.com",
+    "thinking_mode": "disabled",
+    "temperature": 0,
+    "provider_adapter": {
+      "path": "vendor_patches/veriscore_2.0.2_deepseek.patch",
+      "sha256": "5c969de092a93899cae2e0e21d23b4a9e5e255c14f39e17228e8b2c4808bcfc0"
+    },
+    "label_n": 2,
+    "search_provider": "Google Search via Serper API",
+    "search_res_num": 10,
+    "shared_domain_k": true,
+    "k_definition": "upper median verifiable-claim count across every condition and response in the same split",
+    "unsupported_definition": "all official verification labels other than supported",
+    "model_selection_rule": "Fix one extraction model and one verification model before the formal run and use them unchanged for every condition."
+  },
+  "analysis": {
+    "primary_metric": "veriscore_f1_at_shared_median_k",
+    "secondary_metrics": [
+      "factual_precision",
+      "supported_claim_count",
+      "verifiable_claim_count"
+    ],
+    "paired_comparisons": [
+      {
+        "name": "b_minus_a",
+        "treatment": "b",
+        "baseline": "a"
+      },
+      {
+        "name": "d_minus_c",
+        "treatment": "d2",
+        "baseline": "c"
+      }
+    ],
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20260802,
+    "confidence_level": 0.95,
+    "sampling_unit": "response_id"
+  },
+  "isolation": {
+    "existing_cove_artifacts_are_read_only": true,
+    "existing_claim_extraction_is_not_reused": true,
+    "existing_hybrid_evidence_is_not_reused": true,
+    "gold_claims_labels_evidence_and_qrels_are_withheld": true,
+    "official_vendor_run_is_out_of_process": true,
+    "external_score_is_not_a_human_gold_correction_label": true,
+    "external_score_is_not_merged_into_the_three_layer_evaluation": true
+  }
+}

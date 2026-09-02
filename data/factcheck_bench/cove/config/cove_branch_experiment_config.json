@@ -1,0 +1,141 @@
+{
+  "schema_version": "fcb_cove_branch_experiment_config_v1",
+  "experiment": "Study II: controlled four-branch CoVe comparison",
+  "scope": "full",
+  "base_cove_config_path": "data/factcheck_bench/cove/config/cove_experiment_config.json",
+  "retrieval_config_path": "data/factcheck_bench/retrieval/config/retrieval_evaluation_config.json",
+  "shared_inputs": {
+    "initial_response_source": "cove_response_manifest",
+    "verification_questions_source": "frozen_B1_question_planning",
+    "branch_a_standard_answers_source": "frozen_B3_independent_verification_answers",
+    "branch_a_standard_revision_source": "frozen_B5_cove_revision",
+    "expected_dev_responses": 20,
+    "expected_heldout_responses": 72,
+    "heldout_requires_explicit_confirmation": true
+  },
+  "branches": {
+    "a": {
+      "name": "standard_cove",
+      "status_policy": "reuse_and_never_overwrite_existing_B1_B3_B5_B6_outputs",
+      "answer_context": [
+        "verification_question"
+      ],
+      "revision_base": "initial_response",
+      "revision_context": [
+        "frozen_verification_question",
+        "branch_a_parametric_answer"
+      ],
+      "extra_revision_calls": 0
+    },
+    "b": {
+      "name": "evidence_grounded_cove",
+      "evidence_query": "frozen_verification_question_text_only",
+      "retriever": "hybrid_rrf",
+      "evidence_top_k": 5,
+      "answer_prompt_path": "prompts/cove_grounded_verification_answer.txt",
+      "answer_prompt_version": "cove_grounded_verification_answer_v1",
+      "answer_result_schema_version": "cove_branch_b_grounded_answer_result_v1",
+      "revision_prompt_path": "prompts/cove_response_revision.txt",
+      "revision_prompt_version": "cove_question_answer_revision_v1",
+      "revision_result_schema_version": "cove_branch_revision_result_v1",
+      "answer_context": [
+        "frozen_verification_question",
+        "retrieved_passage_text"
+      ],
+      "answer_withheld_fields": [
+        "initial_response",
+        "other_verification_questions",
+        "branch_a_answer",
+        "gold_claim",
+        "human_label",
+        "gold_evidence",
+        "gold_url_mapping",
+        "qrels"
+      ],
+      "revision_base": "initial_response",
+      "revision_context": [
+        "frozen_verification_question",
+        "branch_b_grounded_answer"
+      ],
+      "revision_withheld_fields": [
+        "branch_a_revised_response",
+        "branch_c_revised_response",
+        "branch_d_revised_response",
+        "retrieved_passages",
+        "verifier_prediction",
+        "gold_claim",
+        "human_label",
+        "gold_evidence",
+        "gold_url_mapping",
+        "qrels"
+      ],
+      "extra_revision_calls": 0
+    },
+    "c": {
+      "name": "extra_revision_control",
+      "revision_prompt_path": "prompts/cove_extra_revision_control.txt",
+      "revision_prompt_version": "cove_extra_revision_control_v1",
+      "revision_result_schema_version": "cove_branch_revision_result_v1",
+      "revision_base": "frozen_branch_a_standard_revision",
+      "revision_context": [],
+      "withheld_fields": [
+        "branch_b_answers",
+        "branch_b_revised_response",
+        "branch_d_feedback",
+        "retrieved_passages",
+        "verifier_prediction",
+        "gold_claim",
+        "human_label",
+        "gold_evidence",
+        "gold_url_mapping",
+        "qrels"
+      ],
+      "extra_revision_calls": 1
+    },
+    "d": {
+      "name": "branch_d_candidate_selection",
+      "role": "deterministic_precursor_for_the_active_bounded_branch_d_revision",
+      "feedback_source": "frozen_branch_a_B6c_claim_verifier_and_post_revision_factuality_audit",
+      "feedback_policy_version": "qwen_non_factual_flag_free_confidence_095_v1",
+      "eligible_prediction": "NON_FACTUAL",
+      "minimum_confidence": 0.95,
+      "require_no_deterministic_policy_flags": true,
+      "minimum_evidence_passages": 1,
+      "unknown_action": "do_not_include",
+      "withheld_fields": [
+        "branch_b_answers",
+        "branch_b_revised_response",
+        "branch_c_revised_response",
+        "gold_claim",
+        "human_label",
+        "gold_evidence",
+        "gold_url_mapping",
+        "qrels",
+        "B6b_gold_revised_alignment"
+      ]
+    }
+  },
+  "generation": {
+    "model": "qwen3:8b",
+    "expected_model_digest": "500a1f067a9f782620b40bee6f7b0c89e17ae61f686b92c24933e4ca4b2b8b41",
+    "temperature": 0.0,
+    "seed": 42,
+    "answer_num_predict": 512,
+    "revision_num_predict": 4096,
+    "think": false,
+    "answer_timeout_seconds": 180.0,
+    "revision_timeout_seconds": 300.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3
+  },
+  "comparison_policy": {
+    "paired_unit": "response_id",
+    "primary_cohort": "matched_claims",
+    "branch_outputs_are_not_chained": true,
+    "branch_b_never_reads_branch_a_revision": true,
+    "branch_c_never_reads_evidence_or_verifier_feedback": true,
+    "branch_d_never_reads_branch_b_or_branch_c_outputs": true,
+    "gold_fields_are_evaluation_only": true,
+    "same_final_evaluation_protocol_for_all_branches": true
+  }
+}

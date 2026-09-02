@@ -1,16 +1,7 @@
 #!/usr/bin/env python3
-"""Run a leakage-safe, closed-book factuality verifier with local Ollama.
+"""Run the formal leakage-safe No Evidence verifier with local Ollama.
 
-The model receives one fresh request per claim. The only dynamic benchmark
-value inserted into the request is ``gold_claim``. Gold labels and evidence
-are joined by ``claim_id`` only after inference when reports are built.
-
-Recommended sequence:
-
-1. Dry-run three representative claims (zero model calls).
-2. Run the same three claims into dedicated smoke-test outputs.
-3. Inspect the smoke reports.
-4. Run or resume the selected pilot/full cohort.
+The model receives one fresh request per claim. The only dynamic benchmark value inserted into the request is ``gold_claim``. Gold labels and evidence are joined by ``claim_id`` only after inference when reports are built.
 """
 
 from __future__ import annotations
@@ -40,7 +31,6 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from factcheck_bench_analysis import (  # noqa: E402
-    build_confidence_distribution,
     build_response_aggregation,
     compute_binary_metrics,
 )
@@ -63,34 +53,6 @@ def report_path(path: Path) -> str:
         return str(resolved)
 
 
-DEFAULT_INPUT = (
-    PROJECT_ROOT
-    / "data"
-    / "factcheck_bench"
-    / "processed"
-    / "fcb_gold_claims_pilot_20.jsonl"
-)
-DEFAULT_OUTPUT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "jsonl"
-    / "08b_no_evidence_verifier_results.jsonl"
-)
-DEFAULT_JSON_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08b_no_evidence_verifier_summary.json"
-)
-DEFAULT_MARKDOWN_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08b_no_evidence_verifier_report.md"
-)
 DEFAULT_PROMPT = PROJECT_ROOT / "prompts" / "no_evidence_verifier.txt"
 FULL_PATHS = paths_for_scope(PROJECT_ROOT, "full")
 
@@ -207,7 +169,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Run the FactCheck-Bench no-evidence verifier with Ollama."
     )
-    parser.add_argument("--scope", choices=SCOPES, default="pilot")
+    parser.add_argument("--scope", choices=SCOPES, default="full")
     parser.add_argument("--input", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--report", type=Path, default=None)
@@ -230,16 +192,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=("all", "binary", "matched", "human-unknown"),
         default=None,
         help=(
-            "Claims to run before any --limit/--claim-id selection. Defaults "
-            "to all for pilot and binary for full."
+            "Claims to run before any --limit/--claim-id selection. The formal default is the full binary-labelled cohort."
         ),
     )
     parser.add_argument(
         "--expected-model-digest",
         default=None,
         help=(
-            "Require this installed Ollama digest before writing. Full scope "
-            "defaults to the digest frozen by the completed pilot."
+            "Require this installed Ollama digest before writing. The formal full scope defaults to the digest frozen in the dissertation protocol."
         ),
     )
 
@@ -256,12 +216,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="Select an exact claim ID; repeat this option for multiple IDs.",
     )
-    selection.add_argument(
-        "--smoke-test",
-        action="store_true",
-        help="Select one deterministic claim for each human gold label.",
-    )
-
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-predict", type=int, default=512)
@@ -281,12 +235,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "remaining claims stay pending for --resume."
         ),
     )
-    parser.add_argument(
-        "--high-confidence-threshold",
-        type=float,
-        default=0.8,
-    )
-
     output_mode = parser.add_mutually_exclusive_group()
     output_mode.add_argument(
         "--resume",
@@ -321,10 +269,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args.markdown_report = (
         args.markdown_report or defaults.no_evidence_markdown
     )
-    args.cohort = args.cohort or (
-        "all" if args.scope == "pilot" else "binary"
-    )
-    if args.expected_model_digest is None and args.scope == "full":
+    args.cohort = args.cohort or "binary"
+    if args.expected_model_digest is None:
         args.expected_model_digest = FROZEN_QWEN3_8B_DIGEST
     validate_args(parser, args)
     return args
@@ -348,8 +294,6 @@ def validate_args(
         parser.error("--max-retries cannot be negative")
     if args.max_consecutive_request_errors < 1:
         parser.error("--max-consecutive-request-errors must be at least 1")
-    if not 0.0 <= args.high_confidence_threshold <= 1.0:
-        parser.error("--high-confidence-threshold must be between 0 and 1")
     if args.expected_model_digest is not None and not re.fullmatch(
         r"[0-9a-fA-F]{64}", args.expected_model_digest
     ):
@@ -366,7 +310,7 @@ def validate_write_path_safety(
     args: argparse.Namespace,
     partial_selection: bool,
 ) -> None:
-    """Keep inputs, prompts, pilot history, and formal paths distinct."""
+    """Keep immutable inputs, prompts, and formal output paths distinct."""
     destinations = {
         "json_report": canonical_path(args.report),
         "markdown_report": canonical_path(args.markdown_report),
@@ -408,22 +352,8 @@ def validate_write_path_safety(
         }
         if formal_collisions:
             raise ValueError(
-                "A partial/smoke run may not use formal scope output paths: "
+                "A partial run may not use formal full-cohort output paths: "
                 f"{formal_collisions}"
-            )
-
-    if args.scope == "full":
-        pilot = paths_for_scope(PROJECT_ROOT, "pilot")
-        pilot_root = canonical_path(pilot.output_root)
-        pilot_collisions = {
-            name: str(path)
-            for name, path in destinations.items()
-            if path == pilot_root or pilot_root in path.parents
-        }
-        if pilot_collisions:
-            raise ValueError(
-                "Full scope may not write historical pilot artifacts: "
-                f"{pilot_collisions}"
             )
 
 
@@ -532,7 +462,6 @@ def select_records(
     records: list[dict[str, Any]],
     limit: int | None = None,
     claim_ids: list[str] | None = None,
-    smoke_test: bool = False,
 ) -> list[dict[str, Any]]:
     if claim_ids is not None:
         by_id = {record["claim_id"]: record for record in records}
@@ -540,23 +469,6 @@ def select_records(
         if missing:
             raise ValueError(f"Requested claim IDs were not found: {missing}")
         return [by_id[claim_id] for claim_id in claim_ids]
-
-    if smoke_test:
-        selected: list[dict[str, Any]] = []
-        smoke_labels = (
-            LABELS
-            if any(record["human_label"] == "UNKNOWN" for record in records)
-            else PRIMARY_LABELS
-        )
-        for label in smoke_labels:
-            match = next(
-                (record for record in records if record["human_label"] == label),
-                None,
-            )
-            if match is None:
-                raise ValueError(f"No {label} claim is available for smoke test.")
-            selected.append(match)
-        return selected
 
     if limit is not None:
         return records[:limit]
@@ -1163,38 +1075,6 @@ def build_summary(
         if value is not None
     ]
 
-    confidence_pairs = [
-        (record, result)
-        for record, result in primary_pairs
-        if result is not None and result.get("status") == "ok"
-    ]
-    correct_confidences = [
-        float(result["confidence"])
-        for record, result in confidence_pairs
-        if result["prediction"] == record["human_label"]
-    ]
-    incorrect_confidences = [
-        float(result["confidence"])
-        for record, result in confidence_pairs
-        if result["prediction"] != record["human_label"]
-    ]
-    high_confidence_errors = sum(
-        result["prediction"] != record["human_label"]
-        and float(result["confidence"]) >= args.high_confidence_threshold
-        for record, result in confidence_pairs
-    )
-    high_confidence_abstentions = sum(
-        result["prediction"] == "UNKNOWN"
-        and float(result["confidence"]) >= args.high_confidence_threshold
-        for _, result in confidence_pairs
-    )
-    high_confidence_wrong_decisions = sum(
-        result["prediction"] in PRIMARY_LABELS
-        and result["prediction"] != record["human_label"]
-        and float(result["confidence"]) >= args.high_confidence_threshold
-        for record, result in confidence_pairs
-    )
-
     human_unknown_records = [
         record for record in selected_records if record["human_label"] == "UNKNOWN"
     ]
@@ -1215,12 +1095,6 @@ def build_summary(
     response_rows, response_macro = build_response_aggregation(
         primary_records, result_by_id
     )
-    confidence_distribution = build_confidence_distribution(
-        primary_records,
-        result_by_id,
-        args.high_confidence_threshold,
-    )
-
     return {
         "report_version": REPORT_VERSION,
         "generated_at": finished_at,
@@ -1248,7 +1122,7 @@ def build_summary(
         },
         "run_config": run_config,
         "selection": {
-            "scope": getattr(args, "scope", "pilot"),
+            "scope": getattr(args, "scope", "full"),
             "cohort": getattr(args, "cohort", "all"),
             "selected_claim_count": len(selected_records),
             "selected_claim_ids": selected_ids,
@@ -1293,40 +1167,8 @@ def build_summary(
             ),
         },
         "confusion_matrix": confusion,
-        "confidence_analysis": {
-            "semantics": "self-reported confidence that the selected label is appropriate",
-            "valid_binary_prediction_count": len(confidence_pairs),
-            "mean_confidence_correct": safe_mean(correct_confidences),
-            "mean_confidence_incorrect_or_abstained": safe_mean(
-                incorrect_confidences
-            ),
-            "high_confidence_threshold": args.high_confidence_threshold,
-            "high_confidence_error_count": high_confidence_errors,
-            "high_confidence_wrong_decision_count": (
-                high_confidence_wrong_decisions
-            ),
-            "high_confidence_abstention_count": high_confidence_abstentions,
-            "exact_score_counts": confidence_distribution[
-                "exact_score_counts"
-            ],
-            "by_prediction": confidence_distribution["by_prediction"],
-            "high_confidence_error_claim_ids": confidence_distribution[
-                "high_confidence_error_claim_ids"
-            ],
-            "calibration_warning": (
-                "This scalar is not a full class-probability distribution; do not "
-                "report multiclass Brier score, log loss, or ECE from it."
-            ),
-        },
         "response_aggregation": response_rows,
         "response_macro_metrics": response_macro,
-        "paired_response_cluster_bootstrap": {
-            "status": "not_implemented",
-            "todo": (
-                "Resample response_id clusters and recompute metrics; the "
-                "repository has no reusable bootstrap implementation."
-            ),
-        },
         "latency_seconds": {
             "count": len(latencies),
             "mean": safe_mean(latencies),
@@ -1381,7 +1223,6 @@ def build_markdown_report(
     }
     counts = summary["counts"]
     metrics = summary["primary_binary_metrics"]
-    confidence = summary["confidence_analysis"]
     response_macro = summary["response_macro_metrics"]
 
     lines = [
@@ -1473,38 +1314,6 @@ def build_markdown_report(
             f"{format_metric(response_macro['balanced_accuracy'])} |",
             f"| Response-macro F1 | {format_metric(response_macro['macro_f1'])} |",
             f"| Response-macro coverage | {format_metric(response_macro['coverage'])} |",
-            "",
-            "## Confidence diagnostics",
-            "",
-            "| Measure | Value |",
-            "|---|---:|",
-            "| Mean confidence, correct | "
-            f"{format_metric(confidence['mean_confidence_correct'])} |",
-            "| Mean confidence, incorrect/abstained | "
-            f"{format_metric(confidence['mean_confidence_incorrect_or_abstained'])} |",
-            "| High-confidence error threshold | "
-            f"{format_metric(confidence['high_confidence_threshold'])} |",
-            "| High-confidence errors | "
-            f"{confidence['high_confidence_error_count']} |",
-            "| High-confidence wrong decisions | "
-            f"{confidence['high_confidence_wrong_decision_count']} |",
-            "| High-confidence abstentions | "
-            f"{confidence['high_confidence_abstention_count']} |",
-            "",
-            "### Exact confidence scores",
-            "",
-            "| Score | Count |",
-            "|---:|---:|",
-        ]
-    )
-    for score, count in confidence["exact_score_counts"].items():
-        lines.append(f"| {score} | {count} |")
-    lines.extend(
-        [
-            "",
-            "> Confidence is a model self-report for the selected label, not a "
-            "three-class probability distribution. This report does not compute "
-            "Brier score, log loss, or ECE.",
             "",
             "## Claim-level comparison",
             "",
@@ -1655,9 +1464,8 @@ def main(argv: list[str] | None = None) -> int:
         cohort_records,
         limit=args.limit,
         claim_ids=args.claim_id,
-        smoke_test=args.smoke_test,
     )
-    formal_cohort = "all" if args.scope == "pilot" else "binary"
+    formal_cohort = "binary"
     partial_selection = (
         args.cohort != formal_cohort
         or len(selected_records) != len(cohort_records)

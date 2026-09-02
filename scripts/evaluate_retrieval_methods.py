@@ -50,7 +50,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--scope",
         choices=("full",),
         default="full",
-        help="The canonical Experiment A corpus is full-scope only.",
+        help="The canonical Study I corpus is full-scope only.",
     )
     parser.add_argument(
         "--config",

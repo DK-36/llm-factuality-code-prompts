@@ -1,6 +1,7 @@
 .DS_Store
 .env
 .env.*
+!.env.example
 .venv/
 __pycache__/
 *.py[cod]
@@ -10,7 +11,14 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
-data/
+data/**
+!data/factcheck_bench/
+!data/factcheck_bench/retrieval/
+!data/factcheck_bench/retrieval/config/
+!data/factcheck_bench/retrieval/config/*.json
+!data/factcheck_bench/cove/
+!data/factcheck_bench/cove/config/
+!data/factcheck_bench/cove/config/*.json
 outputs/
 work/
 .local/

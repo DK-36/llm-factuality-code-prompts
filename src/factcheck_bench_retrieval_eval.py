@@ -1,6 +1,6 @@
-"""Two-level retrieval evaluation for FactCheck-Bench Experiment A.
+"""Two-level retrieval evaluation for FactCheck-Bench Study I.
 
-Ranking uses only gold claim text and the frozen passage ``text`` field. Gold
+Ranking uses only canonical claim text and the frozen passage ``text`` field. Gold
 URL mappings and strict passage qrels are loaded only after ranking to evaluate
 benchmark-associated source-document retrieval and strict evidence-passage
 retrieval. The module never calls a verifier or reads human factuality labels.
@@ -740,8 +740,6 @@ def _rank_dense(
     queries: Sequence[Mapping[str, Any]],
     config: Mapping[str, Any],
     split: str,
-    *,
-    embed_batch: Callable[[str, Sequence[str], bool], list[list[float]]] = _ollama_embed_batch,
 ) -> tuple[list[dict[str, Any]], str]:
     try:
         import numpy as np
@@ -749,11 +747,10 @@ def _rank_dense(
         raise RuntimeError("Dense retrieval requires numpy; install requirements.txt") from exc
     dense = config["dense"]
     model = str(dense["model"])
-    model_digest = _model_digest(model) if embed_batch is _ollama_embed_batch else "test-encoder"
+    model_digest = _model_digest(model)
     expected_prefix = dense.get("expected_digest_prefix")
     if (
-        embed_batch is _ollama_embed_batch
-        and isinstance(expected_prefix, str)
+        isinstance(expected_prefix, str)
         and not model_digest.startswith(expected_prefix)
     ):
         raise RuntimeError(
@@ -766,10 +763,10 @@ def _rank_dense(
         passages,
         config,
         model_digest,
-        embed_batch,
+        _ollama_embed_batch,
     )
     query_texts = [str(dense["query_prefix"]) + str(row["text"]) for row in queries]
-    vectors = embed_batch(model, query_texts, bool(dense["truncate"]))
+    vectors = _ollama_embed_batch(model, query_texts, bool(dense["truncate"]))
     query_matrix = np.asarray(vectors, dtype=np.float32)
     norms = np.linalg.norm(query_matrix, axis=1)
     if np.any(~np.isfinite(query_matrix)) or np.any(norms <= 0):
@@ -915,7 +912,7 @@ def rank_frozen_hybrid_queries(
     This helper reuses the verified canonical passage embeddings but never
     reads qrels, labels, evidence stance, or claim-specific gold URL mappings.
     It returns passages plus in-memory BM25, Dense, and Hybrid runs without
-    overwriting Experiment A run artifacts.
+    overwriting Study I run artifacts.
     """
 
     passages, _, _ = _validate_upstream(project_root, corpus_paths)
@@ -1278,7 +1275,7 @@ def _comparison_markdown(report: Mapping[str, Any]) -> str:
     split = str(report["split"])
     split_label = "Dev" if split == "dev" else "Held-out"
     lines = [
-        f"# Experiment A {split} two-level retrieval comparison",
+        f"# Study I {split} two-level retrieval comparison",
         "",
         f"- Status: **{report['status']}**",
         f"- {split_label} queries: **{report['query_count']}**",

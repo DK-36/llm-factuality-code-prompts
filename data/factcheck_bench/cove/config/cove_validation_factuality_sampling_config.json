@@ -1,0 +1,16 @@
+{
+  "schema_version": "fcb_cove_targeted_factuality_sampling_config_v1",
+  "parent_config_path": "data/factcheck_bench/cove/config/cove_validation_config.json",
+  "maximum_factuality_units": 48,
+  "sampling_seed": 20260731,
+  "sampling_method": "deterministic_stratified_by_primary_selection_reason_and_branch",
+  "reason_priority": [
+    "LINKED_TO_PRIMARY_NON_FACTUAL_DIRECTIONAL_DIFFERENCE",
+    "LINKED_TO_PRIMARY_FACTUAL_DIRECTIONAL_DIFFERENCE_SAMPLE",
+    "PRIMARY_BRANCH_NEW_ERROR_CANDIDATE",
+    "DETERMINISTIC_QWEN_POLICY_FLAG",
+    "LINKED_TO_STRUCTURE_RECOVERY_OR_PRESENT_UNEXTRACTED",
+    "LINKED_TO_STABLE_CONTROL_SAMPLE"
+  ],
+  "rationale": "The 48-unit compute-budget cap was fixed before targeted outcome analysis and does not depend on predicted labels."
+}

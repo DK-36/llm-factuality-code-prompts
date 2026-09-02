@@ -1,0 +1,111 @@
+{
+  "schema_version": "fcb_cove_targeted_validation_config_v1",
+  "experiment": "Study II: isolated post-hoc validation of the frozen four-branch held-out comparison",
+  "scope": "full",
+  "split": "heldout",
+  "active_branches": ["a", "b", "c", "d2"],
+  "primary_comparison": {
+    "baseline": "c",
+    "treatment": "d2"
+  },
+  "paired_statistics": {
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20260731,
+    "confidence_level": 0.95,
+    "cluster_unit": "response_id",
+    "fallback_excluded_sensitivity": true
+  },
+  "exact_retained": {
+    "normalization_version": "unicode_nfkc_casefold_whitespace_v1",
+    "operations": [
+      "Unicode NFKC normalization",
+      "Unicode-aware casefold",
+      "collapse all whitespace runs to one ASCII space",
+      "strip leading and trailing whitespace"
+    ],
+    "forbidden_equivalence_sources": [
+      "B6b EQUIVALENT relation",
+      "embedding similarity",
+      "fuzzy matching",
+      "LLM semantic judgment"
+    ],
+    "binary_human_labels_inherit": ["FACTUAL", "NON_FACTUAL"]
+  },
+  "targeted_audit": {
+    "selection_seed": 20260731,
+    "primary_branches": ["c", "d2"],
+    "include_all_non_factual_directional_differences": true,
+    "factual_directional_difference_claim_sample": 35,
+    "stable_control_claim_sample": 12,
+    "include_structure_recovery_and_present_unextracted": true,
+    "include_all_primary_branch_new_error_candidates": true,
+    "include_all_primary_branch_deterministic_flags": true,
+    "exclude_exact_retained_from_factuality_calls": true,
+    "selection_order": "sha256(seed|stratum|stable_id)"
+  },
+  "independent_adjudicator": {
+    "model": "llama3.1:8b",
+    "expected_model_digest": "46e0c10c039e019119339687c3c1757cc81b9da49709a3b3924863ba87ca666e",
+    "temperature": 0.0,
+    "seed": 42,
+    "think": false,
+    "alignment_num_predict": 512,
+    "factuality_num_predict": 768,
+    "timeout_seconds": 240.0,
+    "max_retries": 1,
+    "max_consecutive_request_errors": 3,
+    "alignment_prompt_path": "prompts/cove_targeted_blind_alignment_adjudication.txt",
+    "factuality_prompt_path": "prompts/cove_independent_revised_claim_adjudication.txt",
+    "factuality_aggregation": "any_direct",
+    "development_calibration_gate_passed": false,
+    "interpretation": "auxiliary_cross_model_sensitivity_only"
+  },
+  "tier_policy": {
+    "priority": [
+      "GOLD_INHERITED",
+      "CROSS_MODEL_CONFIRMED",
+      "SILVER_ONLY",
+      "UNRESOLVED"
+    ],
+    "gold_inherited_rule": "one normalized-exact revised claim matches one binary human-labelled initial claim",
+    "cross_model_confirmed_rule": "non-exact targeted claim; Qwen and Llama agree on FACTUAL or NON_FACTUAL; no deterministic Qwen policy flag; Llama evidence is unconflicted",
+    "silver_only_rule": "Qwen has a decisive B6c prediction but no eligible stronger tier",
+    "unresolved_rule": "no decisive prediction, conflicting adjudication, technical failure, or UNKNOWN human anchor"
+  },
+  "leakage_policy": {
+    "alignment_model_input_fields": [
+      "initial_claim_text",
+      "full_revised_response",
+      "extracted_revised_claim_ids_and_text"
+    ],
+    "alignment_withheld_fields": [
+      "branch_id",
+      "human_label",
+      "Qwen_prediction",
+      "Qwen_confidence",
+      "Qwen_rationale",
+      "B6b_relation",
+      "provisional_outcome",
+      "gold_evidence",
+      "qrels"
+    ],
+    "factuality_model_input_fields": [
+      "one_revised_claim_text",
+      "five_frozen_Hybrid_passage_texts"
+    ],
+    "factuality_withheld_fields": [
+      "branch_id",
+      "initial_claim",
+      "human_label",
+      "Qwen_prediction",
+      "Qwen_confidence",
+      "Qwen_rationale",
+      "B6b_relation",
+      "provisional_outcome",
+      "gold_evidence",
+      "gold_evidence_stance",
+      "gold_URL_mapping",
+      "qrels"
+    ]
+  }
+}

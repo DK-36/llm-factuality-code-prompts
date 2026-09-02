@@ -1,8 +1,6 @@
-"""Shared FactCheck-Bench paths, evidence normalization, and cohorts.
+"""Shared full-cohort FactCheck-Bench paths, evidence normalization, and cohorts.
 
-This module deliberately contains no model client.  Data preparation and both
-verifier settings import the same definitions so that ``pilot`` and ``full``
-cannot silently disagree about paths or the matched oracle-evidence cohort.
+This module deliberately contains no model client. Data preparation and both verifier settings import the same definitions so that all formal conditions use identical paths and the same benchmark-associated-evidence cohort.
 """
 
 from __future__ import annotations
@@ -16,7 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-SCOPES = ("pilot", "full")
+SCOPES = ("full",)
 PRIMARY_LABELS = ("FACTUAL", "NON_FACTUAL")
 NORMALIZATION_VERSION = "oracle_evidence_normalization_v1"
 COHORT_VERSION = "binary_with_usable_oracle_evidence_v1"
@@ -48,14 +46,11 @@ class DatasetPaths:
     oracle_output: Path
     oracle_report: Path
     oracle_markdown: Path
-    oracle_smoke_output: Path
-    oracle_smoke_report: Path
-    oracle_smoke_markdown: Path
 
 
 @dataclass(frozen=True)
 class RetrievalPaths:
-    """Canonical full-scope paths for Experiment A corpus artifacts."""
+    """Canonical full-scope paths for Study I corpus artifacts."""
 
     scope: str
     root: Path
@@ -96,21 +91,15 @@ class RetrievalPaths:
 
 
 def paths_for_scope(project_root: Path, scope: str) -> DatasetPaths:
-    """Resolve deterministic project-relative paths for ``pilot`` or ``full``."""
+    """Resolve deterministic project-relative paths for the formal full cohort."""
     if scope not in SCOPES:
         raise ValueError(f"scope must be one of {SCOPES}, got {scope!r}")
 
     data_root = project_root / "data" / "factcheck_bench"
-    if scope == "pilot":
-        source_input = data_root / "processed" / "fcb_annotation_pilot_20.jsonl"
-        gold_claims = data_root / "processed" / "fcb_gold_claims_pilot_20.jsonl"
-        manifest = data_root / "processed" / "fcb_cohort_manifest_pilot_20.jsonl"
-        output_root = project_root / "outputs" / "factcheck_bench_pilot"
-    else:
-        source_input = data_root / "raw" / "factcheck-GPT-benchmark.jsonl"
-        gold_claims = data_root / "processed" / "fcb_gold_claims_full.jsonl"
-        manifest = data_root / "processed" / "fcb_cohort_manifest_full.jsonl"
-        output_root = project_root / "outputs" / "factcheck_bench_full"
+    source_input = data_root / "raw" / "factcheck-GPT-benchmark.jsonl"
+    gold_claims = data_root / "processed" / "fcb_gold_claims_full.jsonl"
+    manifest = data_root / "processed" / "fcb_cohort_manifest_full.jsonl"
+    output_root = project_root / "outputs" / "factcheck_bench_full"
 
     return DatasetPaths(
         scope=scope,
@@ -137,27 +126,16 @@ def paths_for_scope(project_root: Path, scope: str) -> DatasetPaths:
         oracle_markdown=(
             output_root / "reports" / "08c_oracle_evidence_verifier_report.md"
         ),
-        oracle_smoke_output=(
-            output_root / "jsonl" / "08c_oracle_evidence_smoke.jsonl"
-        ),
-        oracle_smoke_report=(
-            output_root / "reports" / "08c_oracle_evidence_smoke_summary.json"
-        ),
-        oracle_smoke_markdown=(
-            output_root / "reports" / "08c_oracle_evidence_smoke_report.md"
-        ),
     )
 
 
 def retrieval_paths(project_root: Path, scope: str = "full") -> RetrievalPaths:
-    """Resolve Experiment A paths without creating directories.
+    """Resolve Study I paths without creating directories.
 
-    Retrieval development and held-out membership is defined only for the full
-    canonical cohort.  Keeping this full-only prevents the historical pilot
-    gold file from becoming a second, competing split source.
+    Retrieval development and held-out membership is defined only for the formal full canonical cohort.
     """
     if scope != "full":
-        raise ValueError("Experiment A retrieval artifacts support full scope only")
+        raise ValueError("Study I retrieval artifacts support full scope only")
 
     root = project_root / "data" / "factcheck_bench" / "retrieval"
     manifests = root / "manifests"

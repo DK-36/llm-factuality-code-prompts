@@ -1,8 +1,7 @@
-"""Experiment B paths and leakage-safe CoVe input preparation.
+"""Study II paths and leakage-safe CoVe input preparation.
 
 This module contains no model client.  It builds one response-level input row
-per eligible FactCheck-Bench source response and verifies that Experiment B
-uses the same response-level development boundary as Experiment A.
+per eligible FactCheck-Bench source response and verifies that Study II uses the same response-level development boundary as Study I.
 """
 
 from __future__ import annotations
@@ -25,7 +24,7 @@ PRIMARY_LABELS = {"FACTUAL", "NON_FACTUAL"}
 
 @dataclass(frozen=True)
 class CovePaths:
-    """Canonical Experiment B paths."""
+    """Canonical Study II paths."""
 
     scope: str
     branch: str
@@ -182,99 +181,20 @@ class CovePaths:
     def factuality_audit_manifest(self, split: str) -> Path:
         return (
             self.jsonl_dir
-            / f"B6d_primary_factuality_audit_{split}.jsonl"
+            / f"post_revision_factuality_audit_{split}.jsonl"
         )
 
     def factuality_audit_summary_json(self, split: str) -> Path:
         return (
             self.reports_dir
-            / f"B6d_primary_factuality_audit_{split}_summary.json"
+            / f"post_revision_factuality_audit_{split}_summary.json"
         )
 
     def factuality_audit_summary_markdown(self, split: str) -> Path:
         return (
             self.reports_dir
-            / f"B6d_primary_factuality_audit_{split}_report.md"
+            / f"post_revision_factuality_audit_{split}_report.md"
         )
-
-    def independent_factuality_results(self, split: str) -> Path:
-        return (
-            self.jsonl_dir
-            / f"B6d_independent_revised_claim_factuality_{split}.jsonl"
-        )
-
-    def independent_factuality_recovery_summary_json(
-        self,
-        split: str,
-    ) -> Path:
-        return (
-            self.reports_dir
-            / f"B6d_independent_factuality_format_recovery_{split}_summary.json"
-        )
-
-    def independent_factuality_recovery_summary_markdown(
-        self,
-        split: str,
-    ) -> Path:
-        return (
-            self.reports_dir
-            / f"B6d_independent_factuality_format_recovery_{split}_report.md"
-        )
-
-    def factuality_consensus_results(self, split: str) -> Path:
-        return (
-            self.jsonl_dir
-            / f"B6d_revised_claim_factuality_consensus_{split}.jsonl"
-        )
-
-    def consensus_initial_outcomes(self, split: str) -> Path:
-        return (
-            self.jsonl_dir
-            / f"B6d_consensus_initial_claim_outcomes_{split}.jsonl"
-        )
-
-    def consensus_added_outcomes(self, split: str) -> Path:
-        return (
-            self.jsonl_dir
-            / f"B6d_consensus_added_claim_outcomes_{split}.jsonl"
-        )
-
-    def factuality_consensus_summary_json(self, split: str) -> Path:
-        return (
-            self.reports_dir
-            / f"B6d_revised_claim_factuality_consensus_{split}_summary.json"
-        )
-
-    def factuality_consensus_summary_markdown(self, split: str) -> Path:
-        return (
-            self.reports_dir
-            / f"B6d_revised_claim_factuality_consensus_{split}_report.md"
-        )
-
-    @property
-    def factuality_calibration_evidence(self) -> Path:
-        return self.jsonl_dir / "B6e_factuality_calibration_evidence_dev.jsonl"
-
-    @property
-    def factuality_calibration_primary_results(self) -> Path:
-        return self.jsonl_dir / "B6e_factuality_calibration_qwen_dev.jsonl"
-
-    @property
-    def factuality_calibration_independent_results(self) -> Path:
-        return self.jsonl_dir / "B6e_factuality_calibration_llama_dev.jsonl"
-
-    @property
-    def factuality_calibration_predictions(self) -> Path:
-        return self.jsonl_dir / "B6e_factuality_calibration_predictions_dev.jsonl"
-
-    @property
-    def factuality_calibration_summary_json(self) -> Path:
-        return self.reports_dir / "B6e_factuality_calibration_dev_summary.json"
-
-    @property
-    def factuality_calibration_summary_markdown(self) -> Path:
-        return self.reports_dir / "B6e_factuality_calibration_dev_report.md"
-
 
 def cove_paths(
     project_root: Path,
@@ -282,7 +202,7 @@ def cove_paths(
     branch: str = "a",
 ) -> CovePaths:
     if scope != "full":
-        raise ValueError("Formal Experiment B currently supports full scope only")
+        raise ValueError("Formal Study II currently supports full scope only")
     if branch not in {"a", "b", "c", "d", "d2"}:
         raise ValueError("CoVe branch must be one of: a, b, c, d, d2")
     root = project_root / "data" / "factcheck_bench" / "cove"
@@ -425,7 +345,7 @@ def load_config(paths: CovePaths, override: Path | None = None) -> dict[str, Any
             f"Unsupported CoVe config schema: {config.get('schema_version')!r}"
         )
     if config.get("scope") != "full":
-        raise ValueError("Experiment B config scope must be full")
+        raise ValueError("Study II config scope must be full")
     return config
 
 
@@ -450,7 +370,7 @@ def _assert_expected(actual: dict[str, int], expected: dict[str, Any]) -> None:
     }
     if mismatches:
         raise ValueError(
-            "Experiment B cohort counts do not match the frozen design: "
+            "Study II cohort counts do not match the frozen design: "
             + json.dumps(mismatches, sort_keys=True)
         )
 

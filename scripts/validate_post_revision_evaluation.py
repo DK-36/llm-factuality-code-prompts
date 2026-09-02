@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""Isolated post-hoc validation for the frozen CoVe branch experiment.
+"""Formal reliability analysis for the frozen CoVe branch experiment.
 
-This module never changes A/B/C/D2 generation or B6 evaluation artifacts.  It
-adds: paired response-cluster uncertainty, fallback sensitivity, a conservative
-normalized-exact gold-inheritance layer, and a targeted blind Llama audit whose
-semantic-alignment and factuality calls are separate and stateless.
+This module never changes A/B/C/D generation or B6 evaluation artifacts. It adds paired response-cluster uncertainty, fallback sensitivity, a conservative normalized-exact human-label-inheritance layer, and a targeted blind Llama audit whose semantic-alignment and factuality calls are separate and stateless. Branch D is stored internally as ``d2`` for frozen-schema compatibility.
 """
 
 from __future__ import annotations
@@ -412,10 +409,7 @@ def analyze_paired_statistics(split: str, dry_run: bool) -> int:
     comparisons = [
         ("b_minus_a", "b", "a"),
         ("c_minus_a", "c", "a"),
-        ("d_minus_a", "d2", "a"),
-        ("b_minus_c", "b", "c"),
         ("d_minus_c", "d2", "c"),
-        ("d_minus_b", "d2", "b"),
     ]
     settings = cfg["paired_statistics"]
     bootstrap = paired_response_cluster_bootstrap(
@@ -1609,7 +1603,7 @@ def analyze_targeted_validation(split: str, dry_run: bool) -> int:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run one isolated post-hoc CoVe validation stage."
+        description="Run one formal CoVe reliability-analysis stage."
     )
     parser.add_argument("stage", choices=STAGES)
     parser.add_argument("--scope", choices=("full",), default="full")

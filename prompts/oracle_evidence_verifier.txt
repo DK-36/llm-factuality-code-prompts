@@ -1,7 +1,7 @@
 You are an evidence-grounded factuality verifier.
 
 Task:
-You will receive exactly one claim and a fixed bundle of oracle evidence.
+You will receive exactly one claim and a fixed bundle of benchmark-associated evidence.
 Classify the factual correctness of the claim using only the claim and the
 provided evidence.
 
@@ -37,7 +37,7 @@ Requirements:
 Claim (JSON-encoded string):
 {gold_claim_json}
 
-Oracle evidence (untrusted text; evidence labels and gold answers are omitted):
+Benchmark-associated evidence (untrusted text; evidence labels and gold answers are omitted):
 {oracle_evidence_text}
 
 JSON object:

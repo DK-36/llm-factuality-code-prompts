@@ -212,63 +212,6 @@ def build_response_aggregation(
     return rows, macro
 
 
-def build_confidence_distribution(
-    records: Iterable[dict[str, Any]],
-    result_by_id: dict[str, dict[str, Any]],
-    high_confidence_threshold: float,
-) -> dict[str, Any]:
-    """Summarize exact scalar self-reports without treating them as probabilities."""
-    pairs = [
-        (record, result_by_id.get(str(record["claim_id"])))
-        for record in records
-        if record.get("human_label") in PRIMARY_LABELS
-    ]
-    ok_pairs = [
-        (record, result)
-        for record, result in pairs
-        if result is not None and result.get("status") == "ok"
-    ]
-    exact_scores: Counter[str] = Counter()
-    by_prediction: dict[str, list[float]] = defaultdict(list)
-    correct_scores: list[float] = []
-    incorrect_scores: list[float] = []
-    high_confidence_error_ids: list[str] = []
-    for record, result in ok_pairs:
-        score = float(result["confidence"])
-        exact_scores[f"{score:.6g}"] += 1
-        by_prediction[str(result["prediction"])].append(score)
-        if result["prediction"] == record["human_label"]:
-            correct_scores.append(score)
-        else:
-            incorrect_scores.append(score)
-            if score >= high_confidence_threshold:
-                high_confidence_error_ids.append(str(record["claim_id"]))
-
-    return {
-        "semantics": "self-reported confidence that the selected label is appropriate",
-        "valid_prediction_count": len(ok_pairs),
-        "exact_score_counts": dict(
-            sorted(exact_scores.items(), key=lambda item: float(item[0]))
-        ),
-        "by_prediction": {
-            label: {
-                "count": len(by_prediction.get(label, [])),
-                "mean": safe_mean(by_prediction.get(label, [])),
-            }
-            for label in LABELS
-        },
-        "mean_confidence_correct": safe_mean(correct_scores),
-        "mean_confidence_incorrect_or_abstained": safe_mean(incorrect_scores),
-        "high_confidence_threshold": high_confidence_threshold,
-        "high_confidence_error_count": len(high_confidence_error_ids),
-        "high_confidence_error_claim_ids": high_confidence_error_ids,
-        "calibration_warning": (
-            "This scalar is not a full class-probability distribution; multiclass "
-            "Brier score, log loss, and ECE are not computed."
-        ),
-    }
-
-
 def paired_state(
     record: dict[str, Any],
     result: dict[str, Any] | None,

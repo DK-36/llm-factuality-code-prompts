@@ -2,6 +2,8 @@
 
 This map follows the final dissertation methodology and prompt catalogue. It includes only stages that implement the reported data preparation, controlled verification conditions, retrieval protocol, CoVe revision design, post-revision evaluation, reliability analysis, or external response-level evaluation.
 
+The executable order and input requirements are specified separately in `docs/REPRODUCTION_FLOW.md` and `docs/DATA_AND_ENVIRONMENT.md`. Frozen method choices are tracked under `data/factcheck_bench/retrieval/config/` and `data/factcheck_bench/cove/config/`.
+
 ## Shared data and retrieval foundation
 
 | Methodological component | Implementation | Supporting module |
@@ -22,7 +24,7 @@ Gold labels, benchmark evidence text, evidence stance, source mappings, and qrel
 | Retrieved Evidence with frozen Hybrid RRF | `scripts/run_retrieved_evidence_claim_verification.py` | `prompts/retrieved_evidence_verifier.txt` |
 | Retrieved-output format normalization | `scripts/run_retrieved_evidence_claim_verification.py` | `prompts/retrieved_evidence_output_repair.txt` |
 | Retrieved-evidence depths K=1, K=3, and K=5 | `scripts/run_retrieved_evidence_claim_verification.py`, `scripts/analyze_retrieval_depth.py` | `prompts/retrieved_evidence_verifier.txt` with only the declared passage count changed |
-| Balanced Accuracy, Macro-F1, Overall Accuracy, abstention, paired transitions, and paired response-cluster bootstrap | `scripts/summarize_claim_verification.py`, `scripts/run_retrieved_evidence_claim_verification.py`, `scripts/analyze_retrieval_depth.py` | None |
+| Balanced Accuracy, Macro-F1, Overall Accuracy, abstention, paired transitions, and paired response-cluster bootstrap | `scripts/run_retrieved_evidence_claim_verification.py`, `scripts/analyze_retrieval_depth.py` | None |
 
 Every eligible claim is evaluated independently, and outputs from one evidence condition are not supplied to another condition.
 
@@ -38,7 +40,6 @@ Every eligible claim is evaluated independently, and outputs from one evidence c
 | B6a | Extract atomic factual claims from the revised response | `scripts/run_standard_cove_and_post_revision_evaluation.py` | `prompts/cove_revised_claim_extraction.txt` |
 | B6b | Align canonical initial claims with revised content without judging factuality | `scripts/run_standard_cove_and_post_revision_evaluation.py` | `prompts/cove_gold_revised_claim_alignment.txt` |
 | B6c | Reassess revised-claim factuality using frozen Hybrid top-five passages | `scripts/run_standard_cove_and_post_revision_evaluation.py` | `prompts/cove_revised_claim_factuality.txt` |
-| B6d/B6e | Perform independent passage adjudication and development calibration for the auxiliary cross-model reliability protocol | `scripts/run_standard_cove_and_post_revision_evaluation.py` | `prompts/cove_independent_revised_claim_adjudication.txt` |
 
 B2 and B4 are diagnostic-only stages and do not affect the Standard CoVe generation path. Post-revision states remain silver unless strengthened by the separately defined reliability layers.
 
@@ -51,7 +52,7 @@ B2 and B4 are diagnostic-only stages and do not affect the Standard CoVe generat
 | C | Apply one additional revision to the frozen Branch A response without retrieved evidence or diagnostic feedback | `scripts/run_controlled_cove_branches.py` | `prompts/cove_extra_revision_control.txt` |
 | D | Apply one bounded targeted revision to the same Branch A response using diagnostic feedback and retrieved evidence | `scripts/run_controlled_cove_branches.py` | `prompts/cove_selective_verifier_revision_v2.txt` |
 
-The active Branch D implementation retains the internal frozen artifact namespace `d2` so that the code remains traceable to the formal outputs, but it is the dissertation's Branch D condition rather than an additional experimental branch.
+The Branch D candidate-selection precursor retains the internal key `d`, while the active bounded Branch D revision retains the frozen artifact key `d2`. Together they implement the dissertation's single Branch D condition; neither identifier denotes an additional reported branch.
 
 ## Revision outcomes, uncertainty, and reliability
 

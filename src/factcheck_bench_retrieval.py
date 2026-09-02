@@ -1,4 +1,4 @@
-"""Experiment A corpus preparation, chunking, and qrels utilities.
+"""Study I corpus preparation, chunking, and qrels utilities.
 
 The module is deliberately model-free.  Gold labels, evidence text, stance, and
 claim-to-URL mappings are persisted for QA/evaluation, but no function here
@@ -610,7 +610,7 @@ def _evidence_manifest_markdown(report: dict[str, Any]) -> str:
     canonical = report["url_canonicalisation"]
     return "\n".join(
         [
-            "# Experiment A corpus preparation report",
+            "# Study I corpus preparation report",
             "",
             f"- Corpus: **{report['corpus_name']}**",
             f"- Evidence items: **{counts['evidence_item_count']}**",
@@ -1263,27 +1263,10 @@ def build_passages(
     *,
     chunk_size: int | None = None,
     chunk_overlap: int | None = None,
-    limit: int | None = None,
-    artifact_namespace: str = "canonical",
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    if artifact_namespace not in {"canonical", "smoke"}:
-        raise ValueError("artifact_namespace must be canonical or smoke")
-    output_passages = (
-        paths.passages
-        if artifact_namespace == "canonical"
-        else paths.root / "smoke" / "passages.jsonl"
-    )
-    output_report = (
-        paths.passage_build_report
-        if artifact_namespace == "canonical"
-        else paths.root / "smoke" / "reports" / "passage_build_report.json"
-    )
-    if limit is not None and artifact_namespace == "canonical" and not dry_run:
-        raise ValueError(
-            "A limited passage build may not overwrite canonical passages.jsonl; "
-            "use artifact_namespace='smoke'."
-        )
+    output_passages = paths.passages
+    output_report = paths.passage_build_report
     documents = load_jsonl(paths.documents)
     document_by_id = _index_unique(documents, "doc_id")
     url_rows = load_jsonl(paths.url_manifest)
@@ -1364,7 +1347,7 @@ def build_passages(
         and row.get("orphaned_from_url_manifest") is not True
     ]
     successful_documents.sort(key=lambda row: row["doc_id"])
-    selected = successful_documents[:limit] if limit is not None else successful_documents
+    selected = successful_documents
     passage_rows = [
         passage
         for document in selected
@@ -1399,9 +1382,7 @@ def build_passages(
         row.get("fetch_status") in {"pending", "stale_pending"}
         for row in documents
     )
-    if len(selected) != len(successful_documents):
-        build_status = "partial_limit"
-    elif pending_document_count:
+    if pending_document_count:
         build_status = "partial_source_fetch"
     else:
         build_status = "complete"
@@ -1432,7 +1413,7 @@ def build_passages(
             "minimum_boundary_fraction": minimum_fraction,
             "fingerprint": chunk_config_fingerprint,
         },
-        "artifact_namespace": artifact_namespace,
+        "artifact_namespace": "canonical",
         "output_passages": project_relative(project_root, output_passages),
         "index_field_allowlist": sorted(index_field_allowlist),
         "input_documents_sha256": sha256_file(paths.documents),
@@ -1670,9 +1651,6 @@ def build_qrels(
     *,
     split_scope: str = "dev",
     confirm_config_frozen: bool = False,
-    limit: int | None = None,
-    artifact_namespace: str = "canonical",
-    input_passages: Path | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     if split_scope not in {"dev", "heldout", "all"}:
@@ -1683,23 +1661,8 @@ def build_qrels(
             "frozen; pass confirm_config_frozen=True only for the one-time "
             "held-out evaluation or the secondary all-cohort analysis."
         )
-    if artifact_namespace not in {"canonical", "smoke"}:
-        raise ValueError("artifact_namespace must be canonical or smoke")
-    if limit is not None and artifact_namespace == "canonical" and not dry_run:
-        raise ValueError(
-            "A limited qrels build may not overwrite canonical artifacts; use "
-            "artifact_namespace='smoke'."
-        )
-    passage_input = input_passages or paths.passages
-    if artifact_namespace == "smoke":
-        output_root = paths.root / "smoke"
-        output_reports = output_root / "reports"
-        qrels_jsonl = output_root / f"qrels_{split_scope}.jsonl"
-        qrels_tsv = output_root / f"qrels_{split_scope}.tsv"
-        mapping_audit_path = output_reports / f"qrels_{split_scope}_mapping_audit.jsonl"
-        mapping_report_json = output_reports / f"qrels_{split_scope}_mapping_report.json"
-        mapping_report_markdown = output_reports / f"qrels_{split_scope}_mapping_report.md"
-    elif split_scope == "dev":
+    passage_input = paths.passages
+    if split_scope == "dev":
         qrels_jsonl = paths.qrels_dev_jsonl
         qrels_tsv = paths.qrels_dev_tsv
         mapping_audit_path = paths.qrels_dev_mapping_audit
@@ -1746,11 +1709,7 @@ def build_qrels(
     passage_build_report = _validate_current_passage_artifact(
         paths, passage_input, paths.documents, passage_rows
     )
-    if split_scope in {"heldout", "all"} and (
-        artifact_namespace != "canonical"
-        or passage_input != paths.passages
-        or passage_build_report.get("status") != "complete"
-    ):
+    if split_scope in {"heldout", "all"} and passage_build_report.get("status") != "complete":
         raise ValueError(
             "Held-out/all qrels require the complete canonical passage artifact "
             "after every URL row reached a terminal fetch state."
@@ -1774,9 +1733,7 @@ def build_qrels(
             and (split_scope == "all" or row.get("split") == split_scope)
         }
     )
-    selected_claim_ids = set(
-        matched_claim_ids[:limit] if limit is not None else matched_claim_ids
-    )
+    selected_claim_ids = set(matched_claim_ids)
     selected_evidence = [
         row
         for row in evidence_rows
@@ -1969,9 +1926,7 @@ def build_qrels(
         and row.get("fetch_status") in {None, "pending", "stale_pending"}
         for row in mapping_audit
     )
-    if len(selected_claim_ids) != len(matched_claim_ids):
-        mapping_build_status = "partial_limit"
-    elif pending_fetch_mapping_count:
+    if pending_fetch_mapping_count:
         mapping_build_status = "partial_source_fetch"
     else:
         mapping_build_status = "complete_with_recorded_unmatched"
@@ -1983,7 +1938,7 @@ def build_qrels(
         "heldout_configuration_frozen_confirmation": bool(
             confirm_config_frozen if split_scope in {"heldout", "all"} else False
         ),
-        "artifact_namespace": artifact_namespace,
+        "artifact_namespace": "canonical",
         "alignment_version": config["alignment"]["version"],
         "whole_cohort_matched_claim_count": len(all_matched_claim_ids),
         "matched_claim_count": len(matched_claim_ids),
@@ -2042,7 +1997,7 @@ def build_qrels(
             "sentence_substring_auto_accept_threshold": config["alignment"].get(
                 "sentence_substring_auto_accept_threshold", 1.0
             ),
-            "semantic_alignment": "not_implemented; lexical candidates only",
+            "semantic_alignment": "not_used; frozen lexical candidate policy",
         },
     }
     if not dry_run:
@@ -2082,7 +2037,7 @@ def _corpus_summary_markdown(summary: dict[str, Any]) -> str:
     fetch = summary["fetch"]
     return "\n".join(
         [
-            "# Experiment A corpus status",
+            "# Study I corpus status",
             "",
             f"Corpus: **{summary['corpus_name']}**",
             "",

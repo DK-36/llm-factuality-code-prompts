@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Run staged Experiment B CoVe mechanism evaluation.
+"""Run the staged Study II CoVe mechanism and post-revision evaluation.
 
 Current stages:
 
 * ``prepare-inputs``: data-only response manifest and frozen split validation.
 * ``run-questions``: model-backed CoVe verification-question planning.
 * ``analyze-questions``: data-only technical summary of question generation.
-* ``run-alignment``: model-backed silver question-to-gold-claim alignment.
+* ``run-alignment``: model-backed silver question-to-canonical-claim alignment with human labels withheld.
 * ``analyze-alignment``: data-only coverage, atomicity, and redundancy metrics.
 * ``run-answers``: one contextually independent model call per B1 question.
 * ``analyze-answers``: data-only B3 technical and self-report summary.
@@ -22,13 +22,6 @@ Current stages:
 * ``run-revised-claim-factuality``: B6c evidence-grounded revised-claim labels.
 * ``analyze-revised-claim-factuality``: data-only B6c outcome candidates.
 * ``prepare-factuality-audit``: deterministic, non-relabeling B6c diagnostics.
-* ``run-independent-factuality``: blind cross-family passage adjudication.
-* ``recover-independent-factuality-format``: data-only B6d format recovery.
-* ``analyze-factuality-consensus``: conservative B6d agreement gate.
-* ``prepare-factuality-calibration``: frozen Hybrid top-5 for 121 gold dev claims.
-* ``run-factuality-calibration-primary``: Qwen calibration predictions.
-* ``run-factuality-calibration-independent``: Llama passage adjudications.
-* ``analyze-factuality-calibration``: gold metrics and frozen policy selection.
 
 Gold claims and labels are never inserted into the question-planning prompt.
 B2 receives claim text as an evaluation anchor but withholds labels and
@@ -74,7 +67,6 @@ from factcheck_bench_cove import (  # noqa: E402
 from factcheck_bench_analysis import (  # noqa: E402
     build_response_aggregation,
     compute_binary_metrics,
-    paired_response_cluster_bootstrap,
 )
 from factcheck_bench_pipeline import (  # noqa: E402
     normalize_oracle_evidence,
@@ -387,7 +379,7 @@ def preflight_ollama(client: Any, config: dict[str, Any]) -> str:
     expected = settings["expected_model_digest"]
     if digest != expected:
         raise ValueError(
-            "Installed model digest differs from the frozen Experiment B "
+            "Installed model digest differs from the frozen Study II "
             f"configuration: expected={expected}, actual={digest}"
         )
     return digest
@@ -661,7 +653,7 @@ def question_summary(
     complete = len(successful) == len(selected)
     return {
         "schema_version": "cove_question_planning_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B1_question_planning",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -697,7 +689,7 @@ def question_summary(
 
 def build_question_markdown(summary: dict[str, Any]) -> str:
     lines = [
-        "# Experiment B — B1 CoVe Question Planning",
+        "# Study II — B1 CoVe Question Planning",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -734,7 +726,7 @@ def build_question_markdown(summary: dict[str, Any]) -> str:
             "## Boundary of this stage",
             "",
             "This report does not yet measure whether questions cover gold claims. "
-            "Question-to-claim alignment is the next Experiment B stage and will "
+            "Question-to-claim alignment is the next Study II stage and will "
             "use gold claims only as hidden evaluation anchors.",
             "",
         ]
@@ -812,7 +804,7 @@ def run_questions(args: argparse.Namespace) -> int:
         if result_by_id.get(row["response_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B1: split={args.split}, total={len(selected)}, "
+        f"Study II B1: split={args.split}, total={len(selected)}, "
         f"retained_ok={len(selected) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -1698,7 +1690,7 @@ def alignment_summary(
     ]
     return {
         "schema_version": "cove_question_claim_alignment_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B2_question_claim_alignment",
         "split": split,
         "annotation_status": "llm_assisted_silver_not_human_gold",
@@ -1770,7 +1762,7 @@ def build_alignment_markdown(summary: dict[str, Any]) -> str:
     claims = summary["claims"]
     label_metrics = claims["by_human_label"]
     lines = [
-        "# Experiment B — B2 Question-to-Claim Alignment",
+        "# Study II — B2 Question-to-Claim Alignment",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -2026,7 +2018,7 @@ def run_alignment(args: argparse.Namespace) -> int:
         if result_by_id.get(row["response_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B2: split={args.split}, total={len(selected_questions)}, "
+        f"Study II B2: split={args.split}, total={len(selected_questions)}, "
         f"retained_ok={len(selected_questions) - len(pending)}, "
         f"pending={len(pending)}",
         flush=True,
@@ -2809,7 +2801,7 @@ def verification_answer_summary(
     complete = len(successful) == len(units)
     return {
         "schema_version": "cove_independent_verification_answer_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B3_independent_verification_answers",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -2853,7 +2845,7 @@ def build_verification_answer_markdown(summary: dict[str, Any]) -> str:
     latency = summary["latency_seconds"]
     counts = summary["self_reported_answer_status_counts"]
     lines = [
-        "# Experiment B — B3 Independent Verification Answers",
+        "# Study II — B3 Independent Verification Answers",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -3000,7 +2992,7 @@ def run_verification_answers(args: argparse.Namespace) -> int:
         if result_by_id.get(unit["question_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B3: split={args.split}, total={len(units)}, "
+        f"Study II B3: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -3792,7 +3784,7 @@ def answer_claim_evaluation_summary(
     complete = len(successful) == len(units)
     return {
         "schema_version": "cove_answer_claim_evaluation_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B4_answer_correctness_and_inconsistency",
         "split": split,
         "annotation_status": "evidence_grounded_llm_silver_not_human_gold",
@@ -3859,7 +3851,7 @@ def answer_claim_evaluation_summary(
 def build_answer_claim_evaluation_markdown(summary: dict[str, Any]) -> str:
     claim_metrics = summary["claim_metrics"]
     lines = [
-        "# Experiment B — B4 Answer Correctness and Inconsistency",
+        "# Study II — B4 Answer Correctness and Inconsistency",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -4081,7 +4073,7 @@ def run_answer_claim_evaluation(args: argparse.Namespace) -> int:
         if result_by_id.get(unit["evaluation_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B4: split={args.split}, total={len(units)}, "
+        f"Study II B4: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -4791,7 +4783,7 @@ def revision_summary(
     complete = len(successful) == len(units)
     return {
         "schema_version": "cove_response_revision_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B5_cove_response_revision",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -4874,7 +4866,7 @@ def build_revision_markdown(summary: dict[str, Any]) -> str:
     length = summary["length_summary"]
     latency = summary["latency_seconds"]
     lines = [
-        "# Experiment B — B5 Standard CoVe Revision",
+        "# Study II — B5 Standard CoVe Revision",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -5034,7 +5026,7 @@ def run_revision(args: argparse.Namespace) -> int:
         if result_by_id.get(unit["response_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B5: split={args.split}, total={len(units)}, "
+        f"Study II B5: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -5798,7 +5790,7 @@ def revised_claim_summary(
     complete = len(successful) == len(units)
     return {
         "schema_version": "cove_revised_claim_extraction_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B6a_revised_claim_extraction",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -5860,7 +5852,7 @@ def build_revised_claim_markdown(summary: dict[str, Any]) -> str:
     count = summary["claim_count"]
     latency = summary["latency_seconds"]
     lines = [
-        "# Experiment B — B6a Revised Claim Extraction",
+        "# Study II — B6a Revised Claim Extraction",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -5976,7 +5968,7 @@ def run_revised_claim_extraction(args: argparse.Namespace) -> int:
         if result_by_id.get(unit["response_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B6a: split={args.split}, total={len(units)}, "
+        f"Study II B6a: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -7403,7 +7395,7 @@ def revised_alignment_summary(
     )
     summary = {
         "schema_version": "cove_revised_claim_alignment_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B6b_gold_revised_claim_alignment",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -7457,7 +7449,7 @@ def revised_alignment_summary(
             "B6b is semantic alignment, not revised-claim factuality evaluation.",
             "Human labels are joined only after model output for stratified candidate transitions.",
             "PRESENT_UNEXTRACTED identifies a B6a omission and must not be counted as deletion.",
-            "Modified, partial, and added claims require independent factuality evaluation before net gain is computed.",
+            "Modified, partial, and added claims require the separate B6c factuality stage before revision outcomes are computed.",
             "B6b is LLM-assisted silver alignment produced by the same model family and requires development audit.",
         ],
     }
@@ -7467,7 +7459,7 @@ def revised_alignment_summary(
 def build_revised_alignment_markdown(summary: dict[str, Any]) -> str:
     revised = summary["revised_claims"]
     lines = [
-        "# Experiment B — B6b Gold-to-Revised Claim Alignment",
+        "# Study II — B6b Gold-to-Revised Claim Alignment",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -7615,7 +7607,7 @@ def run_revised_claim_alignment(args: argparse.Namespace) -> int:
         if result_by_id.get(unit["response_id"], {}).get("status") != "ok"
     ]
     print(
-        f"Experiment B B6b: split={args.split}, total={len(units)}, "
+        f"Study II B6b: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -8823,7 +8815,7 @@ def revised_factuality_summary(
     )
     return {
         "schema_version": "cove_revised_claim_factuality_summary_v1",
-        "experiment": "Experiment B: CoVe mechanism evaluation",
+        "experiment": "Study II: CoVe mechanism evaluation",
         "stage": "B6c_revised_claim_factuality",
         "split": split,
         "completion_status": "complete" if complete else "incomplete",
@@ -8913,7 +8905,7 @@ def build_revised_factuality_markdown(summary: dict[str, Any]) -> str:
     confidence = summary["self_reported_confidence"]
     latency = summary["latency_seconds"]
     lines = [
-        "# Experiment B — B6c Revised-Claim Factuality",
+        "# Study II — B6c Revised-Claim Factuality",
         "",
         f"- Split: `{summary['split']}`",
         f"- Completion: **{summary['completion_status']}**",
@@ -8978,7 +8970,7 @@ def build_revised_factuality_markdown(summary: dict[str, Any]) -> str:
             "## Interpretation boundary",
             "",
             "Every B6a revised claim is checked against evidence retrieved by "
-            "the frozen Experiment A Hybrid RRF configuration. Query ranking "
+            "the frozen Study I Hybrid RRF configuration. Query ranking "
             "uses revised-claim text only and does not use qrels, human labels, "
             "gold evidence, or B6b relation labels.",
             "",
@@ -9101,7 +9093,7 @@ def run_revised_claim_factuality(args: argparse.Namespace) -> int:
         ).get("status") != "ok"
     ]
     print(
-        f"Experiment B B6c: split={args.split}, total={len(units)}, "
+        f"Study II B6c: split={args.split}, total={len(units)}, "
         f"retained_ok={len(units) - len(pending)}, pending={len(pending)}",
         flush=True,
     )
@@ -9459,7 +9451,7 @@ def load_validated_b6c_context(
     expected_ids = {unit["revised_claim_id"] for unit in units}
     if successful_ids != expected_ids:
         raise ValueError(
-            f"B6c {split} must be technically complete before B6d"
+            f"B6c {split} must be technically complete before the post-revision factuality audit"
         )
     return units, evidence_rows, results, run_config
 
@@ -9499,12 +9491,12 @@ def prepare_primary_factuality_audit(args: argparse.Namespace) -> int:
     }
     initial_outcomes = load_jsonl(paths.initial_claim_outcomes(args.split))
     added_outcomes = load_jsonl(paths.added_claim_outcomes(args.split))
-    consensus_settings = config["revised_factuality_consensus"]
+    audit_policy = config["factuality_audit_policy"]
     high_initial = set(
-        consensus_settings["high_impact_initial_outcomes"]
+        audit_policy["high_impact_initial_outcomes"]
     )
     high_added = set(
-        consensus_settings["high_impact_added_outcomes"]
+        audit_policy["high_impact_added_outcomes"]
     )
     impact_roles: defaultdict[str, set[str]] = defaultdict(set)
     for row in initial_outcomes:
@@ -9563,7 +9555,7 @@ def prepare_primary_factuality_audit(args: argparse.Namespace) -> int:
     summary = {
         "schema_version": "cove_primary_factuality_audit_summary_v1",
         "experiment": config["experiment"],
-        "stage": "B6d_primary_factuality_audit",
+        "stage": "post_revision_factuality_audit",
         "split": args.split,
         "status": "complete",
         "claim_count": len(audit_rows),
@@ -9586,11 +9578,11 @@ def prepare_primary_factuality_audit(args: argparse.Namespace) -> int:
         },
         "primary_run_fingerprint": run_config["run_fingerprint"],
         "raw_labels_changed": False,
-        "next_stage": "B6d_independent_revised_claim_adjudication",
+        "next_stage": "branch_d_candidate_selection_and_targeted_reliability_sampling",
         "interpretation_notes": [
             "Flags identify explicit policy inconsistencies; they do not relabel the primary B6c result.",
-            "All revised claims, not only flagged or high-impact claims, require independent adjudication.",
-            "The independent model must not see primary predictions, confidence, rationale, initial labels, B6b relations, or qrels.",
+            "Branch D candidate selection excludes flagged claims before bounding the targeted feedback.",
+            "Blind cross-model reliability is assessed separately on the frozen targeted sample and never changes the primary silver labels.",
         ],
     }
     if args.dry_run:
@@ -9608,7 +9600,7 @@ def prepare_primary_factuality_audit(args: argparse.Namespace) -> int:
         summary,
     )
     lines = [
-        "# Experiment B — B6d Primary Factuality Audit",
+        "# Study II — Post-revision Factuality Audit",
         "",
         f"- Split: `{args.split}`",
         f"- Claims audited: {len(audit_rows)}",
@@ -9643,2198 +9635,10 @@ def prepare_primary_factuality_audit(args: argparse.Namespace) -> int:
     return 0
 
 
-def make_independent_adjudication_output_schema(
-    config: dict[str, Any],
-) -> dict[str, Any]:
-    labels = list(
-        config["independent_revised_claim_adjudication"][
-            "passage_relation_labels"
-        ]
-    )
-    if set(labels) != PASSAGE_RELATION_LABELS:
-        raise ValueError(
-            "Independent adjudication relation labels differ from taxonomy"
-        )
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "required": ["passage_assessments"],
-        "properties": {
-            "passage_assessments": {
-                "type": "array",
-                "minItems": 5,
-                "maxItems": 5,
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "required": [
-                        "passage_rank",
-                        "relation",
-                        "rationale",
-                    ],
-                    "properties": {
-                        "passage_rank": {
-                            "type": "integer",
-                            "minimum": 1,
-                            "maximum": 5,
-                        },
-                        "relation": {
-                            "type": "string",
-                            "enum": labels,
-                        },
-                        "rationale": {
-                            "type": "string",
-                            "minLength": 3,
-                            "maxLength": 220,
-                        },
-                    },
-                },
-            }
-        },
-    }
-
-
-def load_independent_adjudication_prompt(
-    config: dict[str, Any],
-) -> tuple[Path, str]:
-    settings = config["independent_revised_claim_adjudication"]
-    path = PROJECT_ROOT / settings["prompt_path"]
-    if not path.exists():
-        raise FileNotFoundError(path)
-    template = path.read_text(encoding="utf-8")
-    found = {
-        placeholder
-        for placeholder in INDEPENDENT_ADJUDICATION_PLACEHOLDERS
-        if placeholder in template
-    }
-    if found != INDEPENDENT_ADJUDICATION_PLACEHOLDERS:
-        raise ValueError(
-            "Independent adjudication prompt placeholders are incomplete"
-        )
-    for placeholder in INDEPENDENT_ADJUDICATION_PLACEHOLDERS:
-        if template.count(placeholder) != 1:
-            raise ValueError(
-                f"Independent prompt must contain {placeholder} once"
-            )
-    return path, template
-
-
-def derive_independent_prediction(
-    assessments: list[dict[str, Any]],
-) -> tuple[str, str]:
-    relations = {row["relation"] for row in assessments}
-    has_support = "SUPPORTS" in relations
-    has_refute = "REFUTES" in relations
-    if has_support and not has_refute:
-        return "FACTUAL", "DIRECT_SUPPORT"
-    if has_refute and not has_support:
-        return "NON_FACTUAL", "DIRECT_REFUTATION"
-    if has_support and has_refute:
-        return "UNKNOWN", "CONFLICTING_DIRECT_EVIDENCE"
-    return "UNKNOWN", "INSUFFICIENT_DIRECT_EVIDENCE"
-
-
-def parse_independent_adjudication_output(
-    raw_output: str,
-) -> dict[str, Any]:
-    if not isinstance(raw_output, str) or not raw_output.strip():
-        raise ValueError("Independent adjudication output is empty")
-    try:
-        parsed = json.loads(raw_output)
-    except json.JSONDecodeError as error:
-        raise ValueError(
-            f"Independent output is not strict JSON: {error}"
-        ) from error
-    if not isinstance(parsed, dict) or set(parsed) != {
-        "passage_assessments"
-    }:
-        raise ValueError(
-            "Independent output must contain exactly passage_assessments"
-        )
-    assessments = parsed["passage_assessments"]
-    if not isinstance(assessments, list) or len(assessments) != 5:
-        raise ValueError("Independent output must contain five assessments")
-    ranks = [
-        row.get("passage_rank") if isinstance(row, dict) else None
-        for row in assessments
-    ]
-    if (
-        any(type(rank) is not int for rank in ranks)
-        or set(ranks) != {1, 2, 3, 4, 5}
-    ):
-        raise ValueError(
-            "Independent passage ranks must be unique integers 1 through 5"
-        )
-    format_warnings: set[str] = set()
-    if ranks != [1, 2, 3, 4, 5]:
-        format_warnings.add("PASSAGE_ASSESSMENTS_REORDERED")
-    assessments = sorted(
-        assessments,
-        key=lambda row: row["passage_rank"],
-    )
-    normalized: list[dict[str, Any]] = []
-    for expected_rank, row in enumerate(assessments, start=1):
-        if not isinstance(row, dict) or set(row) != {
-            "passage_rank",
-            "relation",
-            "rationale",
-        }:
-            raise ValueError("Invalid independent passage assessment object")
-        if row["passage_rank"] != expected_rank:
-            raise ValueError(
-                "Independent passage assessments must be ordered 1 through 5"
-            )
-        if row["relation"] not in PASSAGE_RELATION_LABELS:
-            raise ValueError(
-                f"Invalid passage relation: {row['relation']}"
-            )
-        if not isinstance(row["rationale"], str):
-            raise ValueError("Passage rationale must be a string")
-        rationale = " ".join(row["rationale"].split())
-        if not 3 <= len(rationale) <= 220:
-            raise ValueError(
-                "Passage rationale must contain 3 to 220 characters"
-            )
-        if len(rationale.split()) > 30:
-            format_warnings.add("RATIONALE_WORD_LIMIT_EXCEEDED")
-        if len(rationale) == 220:
-            format_warnings.add("RATIONALE_AT_SCHEMA_MAX_LENGTH")
-        normalized.append(
-            {
-                "passage_rank": expected_rank,
-                "relation": row["relation"],
-                "rationale": rationale,
-            }
-        )
-    prediction, evidence_status = derive_independent_prediction(normalized)
-    output = {
-        "passage_assessments": normalized,
-        "prediction": prediction,
-        "evidence_status": evidence_status,
-    }
-    if format_warnings:
-        output["format_warnings"] = sorted(format_warnings)
-    return output
-
-
-def preflight_independent_adjudicator(
-    client: Any,
-    config: dict[str, Any],
-    *,
-    split: str,
-    paths: Any,
-) -> str:
-    settings = config["independent_revised_claim_adjudication"]
-    model = settings["model"]
-    if any(
-        fragment.casefold() in model.casefold()
-        for fragment in settings["disallowed_model_name_fragments"]
-    ):
-        raise ValueError(
-            f"Independent adjudicator model is disallowed: {model}"
-        )
-    try:
-        response = client.list()
-    except Exception as error:
-        raise ConnectionError(
-            "Ollama preflight failed before independent outputs changed"
-        ) from error
-    available: dict[str, str | None] = {}
-    for item in response_value(response, "models") or []:
-        name = response_value(item, "model") or response_value(item, "name")
-        digest = response_value(item, "digest")
-        if isinstance(name, str):
-            available[name] = digest if isinstance(digest, str) else None
-    if model not in available:
-        raise ValueError(
-            f"Independent model {model!r} is not installed. "
-            f"Run: ollama pull {model}"
-        )
-    digest = available[model]
-    if not digest:
-        raise ValueError(f"Ollama provided no digest for {model!r}")
-    primary_digest = config["revised_claim_factuality"][
-        "expected_model_digest"
-    ]
-    if digest == primary_digest:
-        raise ValueError(
-            "Independent adjudicator digest matches the primary Qwen model"
-        )
-    if split == "heldout":
-        dev_path = paths.independent_factuality_results("dev")
-        if not dev_path.exists():
-            raise ValueError(
-                "Held-out adjudication requires completed development output"
-            )
-        dev_rows = load_jsonl(dev_path)
-        dev_models = {row.get("model") for row in dev_rows}
-        dev_digests = {row.get("model_digest") for row in dev_rows}
-        if dev_models != {model} or dev_digests != {digest}:
-            raise ValueError(
-                "Held-out adjudicator must match the development model/digest"
-            )
-    return digest
-
-
-def build_independent_adjudication_prompt(
-    template: str,
-    unit: dict[str, Any],
-    evidence: dict[str, Any],
-) -> str:
-    return template.replace(
-        "{revised_claim_json}",
-        json.dumps(unit["revised_claim"], ensure_ascii=False),
-    ).replace(
-        "{retrieved_evidence_text}",
-        evidence["normalized_text"],
-    )
-
-
-def build_independent_adjudication_run_config(
-    config: dict[str, Any],
-    *,
-    split: str,
-    prompt_path: Path,
-    evidence_path: Path,
-    audit_path: Path,
-    model_digest: str,
-) -> dict[str, Any]:
-    settings = config["independent_revised_claim_adjudication"]
-    schema = make_independent_adjudication_output_schema(config)
-    payload = {
-        "experiment": config["experiment"],
-        "stage": "B6d_independent_revised_claim_adjudication",
-        "split": split,
-        "evaluation_unit": "one_blind_model_call_per_revised_claim",
-        "model": settings["model"],
-        "model_digest": model_digest,
-        "temperature": float(settings["temperature"]),
-        "seed": int(settings["seed"]),
-        "num_predict": int(settings["num_predict"]),
-        "think": bool(settings["think"]),
-        "timeout_seconds": float(settings["timeout_seconds"]),
-        "max_retries": int(settings["max_retries"]),
-        "max_consecutive_request_errors": int(
-            settings["max_consecutive_request_errors"]
-        ),
-        "passage_relation_labels": settings["passage_relation_labels"],
-        "prompt_version": settings["prompt_version"],
-        "prompt_sha256": sha256_file(prompt_path),
-        "result_schema_version": settings["result_schema_version"],
-        "output_schema_version": settings["output_schema_version"],
-        "output_schema_sha256": canonical_json_hash(schema),
-        "evidence_sha256": sha256_file(evidence_path),
-        "audit_manifest_sha256": sha256_file(audit_path),
-        "model_input_fields": config["leakage_policy"][
-            "independent_adjudication_model_input_fields"
-        ],
-        "withheld_fields": config["leakage_policy"][
-            "independent_adjudication_withheld_fields"
-        ],
-        "overall_prediction_derivation": (
-            "support_only=FACTUAL;refute_only=NON_FACTUAL;"
-            "both_or_neither=UNKNOWN"
-        ),
-    }
-    return {**payload, "run_fingerprint": canonical_json_hash(payload)}
-
-
-def create_independent_adjudication_result_base(
-    unit: dict[str, Any],
-    evidence: dict[str, Any],
-    run_config: dict[str, Any],
-) -> dict[str, Any]:
-    return {
-        "result_schema_version": run_config["result_schema_version"],
-        "revised_claim_id": unit["revised_claim_id"],
-        "response_id": unit["response_id"],
-        "source_record_index": unit["source_record_index"],
-        "split": unit["split"],
-        "revised_claim": unit["revised_claim"],
-        "revised_claim_sha256": unit["revised_claim_sha256"],
-        "stage": run_config["stage"],
-        "evaluation_unit": run_config["evaluation_unit"],
-        "evidence_items": evidence["items"],
-        "evidence_normalized_sha256": evidence["normalized_sha256"],
-        "model_input_fields": run_config["model_input_fields"],
-        "withheld_fields": run_config["withheld_fields"],
-        "model": run_config["model"],
-        "model_digest": run_config["model_digest"],
-        "temperature": run_config["temperature"],
-        "seed": run_config["seed"],
-        "num_predict": run_config["num_predict"],
-        "think": run_config["think"],
-        "timeout_seconds": run_config["timeout_seconds"],
-        "max_retries": run_config["max_retries"],
-        "max_consecutive_request_errors": run_config[
-            "max_consecutive_request_errors"
-        ],
-        "prompt_version": run_config["prompt_version"],
-        "prompt_sha256": run_config["prompt_sha256"],
-        "output_schema_version": run_config["output_schema_version"],
-        "output_schema_sha256": run_config["output_schema_sha256"],
-        "evidence_sha256": run_config["evidence_sha256"],
-        "audit_manifest_sha256": run_config["audit_manifest_sha256"],
-        "overall_prediction_derivation": run_config[
-            "overall_prediction_derivation"
-        ],
-        "run_fingerprint": run_config["run_fingerprint"],
-    }
-
-
-def process_independent_adjudication_unit(
-    unit: dict[str, Any],
-    evidence: dict[str, Any],
-    template: str,
-    config: dict[str, Any],
-    run_config: dict[str, Any],
-    client: Any,
-) -> dict[str, Any]:
-    result = create_independent_adjudication_result_base(
-        unit,
-        evidence,
-        run_config,
-    )
-    prompt = build_independent_adjudication_prompt(
-        template,
-        unit,
-        evidence,
-    )
-    raw_output: str | None = None
-    metadata: dict[str, Any] = {}
-    request_error: Exception | None = None
-    attempts = 0
-    started = time.perf_counter()
-    for attempt in range(run_config["max_retries"] + 1):
-        attempts = attempt + 1
-        try:
-            raw_output, metadata = call_ollama(
-                client,
-                run_config,
-                make_independent_adjudication_output_schema(config),
-                prompt,
-            )
-            request_error = None
-            break
-        except Exception as error:
-            request_error = error
-            if attempt < run_config["max_retries"]:
-                time.sleep(1.0)
-    result.update(
-        {
-            "attempts": attempts,
-            "latency_seconds": round(time.perf_counter() - started, 4),
-            "raw_model_output": raw_output,
-            "ollama_metadata": metadata,
-            "created_at": utc_now(),
-        }
-    )
-    if request_error is not None:
-        result.update(
-            {
-                "status": "request_error",
-                "passage_assessments": None,
-                "prediction": None,
-                "evidence_status": None,
-                "error": f"{type(request_error).__name__}: {request_error}",
-            }
-        )
-        return result
-    try:
-        parsed = parse_independent_adjudication_output(raw_output or "")
-    except Exception as error:
-        result.update(
-            {
-                "status": "parse_error",
-                "passage_assessments": None,
-                "prediction": None,
-                "evidence_status": None,
-                "error": f"{type(error).__name__}: {error}",
-            }
-        )
-        return result
-    result.update({"status": "ok", **parsed, "error": None})
-    return result
-
-
-def validate_existing_independent_adjudications(
-    rows: list[dict[str, Any]],
-    units: list[dict[str, Any]],
-    evidence_by_id: dict[str, dict[str, Any]],
-    run_config: dict[str, Any],
-) -> None:
-    unit_by_id = {unit["revised_claim_id"]: unit for unit in units}
-    seen: set[str] = set()
-    for row in rows:
-        claim_id = row.get("revised_claim_id")
-        if claim_id not in unit_by_id:
-            raise ValueError(
-                f"Independent output has unexpected claim: {claim_id}"
-            )
-        if claim_id in seen:
-            raise ValueError(
-                f"Duplicate independent adjudication: {claim_id}"
-            )
-        seen.add(claim_id)
-        expected_base = create_independent_adjudication_result_base(
-            unit_by_id[claim_id],
-            evidence_by_id[claim_id],
-            run_config,
-        )
-        for key, expected in expected_base.items():
-            if row.get(key) != expected:
-                raise ValueError(
-                    f"Independent output incompatible for {claim_id}: {key}"
-                )
-        status = row.get("status")
-        if status not in {"ok", "request_error", "parse_error"}:
-            raise ValueError(
-                f"Invalid independent status for {claim_id}: {status}"
-            )
-        if status == "ok":
-            parsed = parse_independent_adjudication_output(
-                json.dumps(
-                    {
-                        "passage_assessments": row.get(
-                            "passage_assessments"
-                        )
-                    },
-                    ensure_ascii=False,
-                )
-            )
-            for key in (
-                "passage_assessments",
-                "prediction",
-                "evidence_status",
-            ):
-                expected = parsed[key]
-                if row.get(key) != expected:
-                    raise ValueError(
-                        f"Non-canonical independent {key}: {claim_id}"
-                    )
-            actual_warnings = row.get("format_warnings", [])
-            if (
-                not isinstance(actual_warnings, list)
-                or any(
-                    warning not in INDEPENDENT_FORMAT_WARNINGS
-                    for warning in actual_warnings
-                )
-            ):
-                raise ValueError(
-                    f"Invalid independent format warnings: {claim_id}"
-                )
-            expected_stored_warnings = {
-                warning
-                for warning in parsed.get("format_warnings", [])
-                if warning != "PASSAGE_ASSESSMENTS_REORDERED"
-            }
-            if not expected_stored_warnings.issubset(
-                set(actual_warnings)
-            ):
-                raise ValueError(
-                    f"Missing independent format warning: {claim_id}"
-                )
-            if row.get("error") is not None:
-                raise ValueError(
-                    f"Successful independent row has error: {claim_id}"
-                )
-
-
-def recover_independent_factuality_format(
-    args: argparse.Namespace,
-) -> int:
-    """Recover structurally complete B6d outputs without another model call."""
-
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    units, evidence_rows, _, _ = load_validated_b6c_context(
-        paths,
-        config,
-        args.split,
-    )
-    evidence_by_id = {
-        row["revised_claim_id"]: row for row in evidence_rows
-    }
-    audit_path = paths.factuality_audit_manifest(args.split)
-    output_path = paths.independent_factuality_results(args.split)
-    if not audit_path.exists():
-        raise FileNotFoundError(audit_path)
-    if not output_path.exists():
-        raise FileNotFoundError(output_path)
-    rows = load_jsonl(output_path)
-    model_digests = {row.get("model_digest") for row in rows}
-    if len(model_digests) != 1 or None in model_digests:
-        raise ValueError(
-            "Independent output does not have one valid model digest"
-        )
-    prompt_path, _ = load_independent_adjudication_prompt(config)
-    run_config = build_independent_adjudication_run_config(
-        config,
-        split=args.split,
-        prompt_path=prompt_path,
-        evidence_path=paths.revised_claim_evidence(args.split),
-        audit_path=audit_path,
-        model_digest=next(iter(model_digests)),
-    )
-    validate_existing_independent_adjudications(
-        rows,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    recovered_this_run = 0
-    for row in rows:
-        if row.get("status") != "parse_error":
-            continue
-        raw_output = row.get("raw_model_output")
-        if not isinstance(raw_output, str) or not raw_output.strip():
-            continue
-        try:
-            parsed = parse_independent_adjudication_output(raw_output)
-        except ValueError:
-            continue
-        warnings = parsed.pop("format_warnings", [])
-        row.update(
-            {
-                **parsed,
-                "status": "ok",
-                "error": None,
-                "format_warnings": warnings,
-                "format_recovery": {
-                    "method": (
-                        "deterministic_rank_sort_and_rationale_limit_warning"
-                    ),
-                    "model_recalled": False,
-                    "raw_model_output_changed": False,
-                    "relation_labels_changed": False,
-                },
-            }
-        )
-        recovered_this_run += 1
-    atomic_write_jsonl(output_path, rows)
-    validate_existing_independent_adjudications(
-        rows,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    status_counts = Counter(row.get("status") for row in rows)
-    recovered_rows = [
-        row for row in rows if row.get("format_recovery") is not None
-    ]
-    recovery_warning_counts = Counter(
-        warning
-        for row in recovered_rows
-        for warning in row.get("format_warnings", [])
-    )
-    summary = {
-        "stage": "B6d_independent_factuality_format_recovery",
-        "split": args.split,
-        "rows": len(rows),
-        "recovered_rows_this_run": recovered_this_run,
-        "recovered_rows_total": len(recovered_rows),
-        "status_counts": dict(sorted(status_counts.items())),
-        "recovery_warning_counts": dict(
-            sorted(recovery_warning_counts.items())
-        ),
-        "model_recalled": False,
-        "raw_model_outputs_changed": False,
-        "relation_labels_changed": False,
-        "results": str(output_path.relative_to(PROJECT_ROOT)),
-        "next_stage": "analyze-factuality-consensus",
-    }
-    atomic_write_json(
-        paths.independent_factuality_recovery_summary_json(args.split),
-        summary,
-    )
-    lines = [
-        "# Experiment B — B6d Independent Factuality Format Recovery",
-        "",
-        f"- Split: `{args.split}`",
-        f"- Result rows: {len(rows)}",
-        f"- Recovered rows: {len(recovered_rows)}",
-        f"- Recovered on this invocation: {recovered_this_run}",
-        f"- Final statuses: `{dict(sorted(status_counts.items()))}`",
-        "- Model recalled: **no**",
-        "- Raw model output changed: **no**",
-        "- Passage relation labels changed: **no**",
-        "",
-        "## Recovery warnings",
-        "",
-        "| Warning | Rows |",
-        "|---|---:|",
-    ]
-    for warning, count in sorted(recovery_warning_counts.items()):
-        lines.append(f"| `{warning}` | {count} |")
-    lines.extend(
-        [
-            "",
-            "Recovery sorts a complete unique rank set and treats the "
-            "30-word instruction as an auditable warning. The schema's "
-            "3–220 character constraint remains mandatory.",
-            "",
-        ]
-    )
-    atomic_write_text(
-        paths.independent_factuality_recovery_summary_markdown(args.split),
-        "\n".join(lines),
-    )
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-    complete = (
-        status_counts.get("ok") == len(units)
-        and len(status_counts) == 1
-    )
-    return 0 if complete else 2
-
-
-def run_independent_factuality(args: argparse.Namespace) -> int:
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    units, evidence_rows, _, _ = load_validated_b6c_context(
-        paths,
-        config,
-        args.split,
-    )
-    evidence_by_id = {
-        row["revised_claim_id"]: row for row in evidence_rows
-    }
-    audit_path = paths.factuality_audit_manifest(args.split)
-    if not audit_path.exists():
-        raise FileNotFoundError(
-            "Run prepare-factuality-audit before independent adjudication"
-        )
-    audit_rows = load_jsonl(audit_path)
-    if {row["revised_claim_id"] for row in audit_rows} != {
-        unit["revised_claim_id"] for unit in units
-    }:
-        raise ValueError("B6d audit manifest does not cover exact claim set")
-    prompt_path, template = load_independent_adjudication_prompt(config)
-    settings = config["independent_revised_claim_adjudication"]
-    if args.dry_run:
-        run_config = build_independent_adjudication_run_config(
-            config,
-            split=args.split,
-            prompt_path=prompt_path,
-            evidence_path=paths.revised_claim_evidence(args.split),
-            audit_path=audit_path,
-            model_digest="DRY_RUN_NOT_CHECKED",
-        )
-        print("EXPERIMENT B B6D INDEPENDENT ADJUDICATION DRY RUN")
-        print(
-            f"Split: {args.split}; blind claim calls: {len(units)}; "
-            f"model: {settings['model']}"
-        )
-        print(f"Run fingerprint: {run_config['run_fingerprint']}")
-        print(
-            "Primary B6c labels/rationales, initial labels, B6b relations, "
-            "gold evidence, and qrels are withheld."
-        )
-        print(f"\n--- Preview: {units[0]['revised_claim_id']} ---")
-        print(
-            build_independent_adjudication_prompt(
-                template,
-                units[0],
-                evidence_by_id[units[0]["revised_claim_id"]],
-            )
-        )
-        print("\nNo Ollama calls were made and no files were written.")
-        return 0
-    client = Client(
-        host=args.ollama_host,
-        timeout=float(settings["timeout_seconds"]),
-    )
-    model_digest = preflight_independent_adjudicator(
-        client,
-        config,
-        split=args.split,
-        paths=paths,
-    )
-    run_config = build_independent_adjudication_run_config(
-        config,
-        split=args.split,
-        prompt_path=prompt_path,
-        evidence_path=paths.revised_claim_evidence(args.split),
-        audit_path=audit_path,
-        model_digest=model_digest,
-    )
-    output_path = paths.independent_factuality_results(args.split)
-    existing = load_jsonl(output_path) if output_path.exists() else []
-    if existing and not args.resume:
-        raise FileExistsError(
-            f"Output already exists; rerun with --resume: {output_path}"
-        )
-    validate_existing_independent_adjudications(
-        existing,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    result_by_id = {
-        row["revised_claim_id"]: row for row in existing
-    }
-    pending = [
-        unit
-        for unit in units
-        if result_by_id.get(
-            unit["revised_claim_id"], {}
-        ).get("status") != "ok"
-    ]
-    print(
-        f"Experiment B B6d: split={args.split}, total={len(units)}, "
-        f"retained_ok={len(units) - len(pending)}, pending={len(pending)}, "
-        f"model={settings['model']}",
-        flush=True,
-    )
-    order = {
-        unit["revised_claim_id"]: index
-        for index, unit in enumerate(units)
-    }
-    consecutive_request_errors = 0
-    max_consecutive = int(settings["max_consecutive_request_errors"])
-    for unit in pending:
-        claim_id = unit["revised_claim_id"]
-        position = order[claim_id] + 1
-        print(
-            f"[{position}/{len(units)}] {claim_id} independently "
-            "adjudicating five passages ...",
-            flush=True,
-        )
-        result = process_independent_adjudication_unit(
-            unit,
-            evidence_by_id[claim_id],
-            template,
-            config,
-            run_config,
-            client,
-        )
-        result_by_id[claim_id] = result
-        ordered = [
-            result_by_id[item["revised_claim_id"]]
-            for item in units
-            if item["revised_claim_id"] in result_by_id
-        ]
-        atomic_write_jsonl(output_path, ordered)
-        if result["status"] == "ok":
-            consecutive_request_errors = 0
-            relation_counts = Counter(
-                item["relation"]
-                for item in result["passage_assessments"]
-            )
-            print(
-                f"[{position}/{len(units)}] success, "
-                f"{result['prediction']} "
-                f"({result['evidence_status']}), "
-                f"relations={dict(relation_counts)}, "
-                f"{result['latency_seconds']:.1f}s",
-                flush=True,
-            )
-        else:
-            if result["status"] == "request_error":
-                consecutive_request_errors += 1
-            else:
-                consecutive_request_errors = 0
-            print(
-                f"[{position}/{len(units)}] {result['status']}: "
-                f"{result['error']}",
-                flush=True,
-            )
-            if consecutive_request_errors >= max_consecutive:
-                print(
-                    "Stopping after the configured consecutive request-error "
-                    "limit. The same command will resume safely.",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                break
-    all_results = [
-        result_by_id[unit["revised_claim_id"]]
-        for unit in units
-        if unit["revised_claim_id"] in result_by_id
-    ]
-    validate_existing_independent_adjudications(
-        all_results,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    status_counts = Counter(
-        result_by_id.get(
-            unit["revised_claim_id"], {}
-        ).get("status", "missing")
-        for unit in units
-    )
-    prediction_counts = Counter(
-        row["prediction"]
-        for row in all_results
-        if row.get("status") == "ok"
-    )
-    print(
-        json.dumps(
-            {
-                "stage": "B6d_independent_revised_claim_adjudication",
-                "split": args.split,
-                "status_counts": dict(status_counts),
-                "prediction_counts": dict(prediction_counts),
-                "results": str(output_path.relative_to(PROJECT_ROOT)),
-                "next_stage": "analyze-factuality-consensus",
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
-    complete = (
-        status_counts.get("ok") == len(units)
-        and len(status_counts) == 1
-    )
-    return 0 if complete else 2
-
-
-def cohen_kappa_from_pairs(
-    pairs: list[tuple[str, str]],
-    labels: tuple[str, ...],
-) -> float | None:
-    if not pairs:
-        return None
-    observed = sum(left == right for left, right in pairs) / len(pairs)
-    left_counts = Counter(left for left, _ in pairs)
-    right_counts = Counter(right for _, right in pairs)
-    expected = sum(
-        left_counts[label] / len(pairs)
-        * right_counts[label] / len(pairs)
-        for label in labels
-    )
-    if expected == 1.0:
-        return 1.0 if observed == 1.0 else None
-    return (observed - expected) / (1.0 - expected)
-
-
-def analyze_factuality_consensus(args: argparse.Namespace) -> int:
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    units, evidence_rows, primary_results, _ = load_validated_b6c_context(
-        paths,
-        config,
-        args.split,
-    )
-    audit_path = paths.factuality_audit_manifest(args.split)
-    independent_path = paths.independent_factuality_results(args.split)
-    if not audit_path.exists():
-        raise FileNotFoundError(audit_path)
-    if not independent_path.exists():
-        raise FileNotFoundError(independent_path)
-    audit_rows = load_jsonl(audit_path)
-    independent_rows = load_jsonl(independent_path)
-    evidence_by_id = {
-        row["revised_claim_id"]: row for row in evidence_rows
-    }
-    unit_ids = {unit["revised_claim_id"] for unit in units}
-    if {row["revised_claim_id"] for row in audit_rows} != unit_ids:
-        raise ValueError("Audit manifest claim set mismatch")
-    if {row["revised_claim_id"] for row in independent_rows} != unit_ids:
-        raise ValueError("Independent result claim set mismatch")
-    if any(row.get("status") != "ok" for row in independent_rows):
-        raise ValueError(
-            "Independent adjudication must be complete before consensus"
-        )
-    independent_model_digests = {
-        row.get("model_digest") for row in independent_rows
-    }
-    if (
-        len(independent_model_digests) != 1
-        or None in independent_model_digests
-    ):
-        raise ValueError(
-            "Independent adjudication does not have one valid model digest"
-        )
-    independent_prompt_path, _ = load_independent_adjudication_prompt(
-        config
-    )
-    independent_run_config = build_independent_adjudication_run_config(
-        config,
-        split=args.split,
-        prompt_path=independent_prompt_path,
-        evidence_path=paths.revised_claim_evidence(args.split),
-        audit_path=audit_path,
-        model_digest=next(iter(independent_model_digests)),
-    )
-    validate_existing_independent_adjudications(
-        independent_rows,
-        units,
-        evidence_by_id,
-        independent_run_config,
-    )
-    primary_by_id = {
-        row["revised_claim_id"]: row for row in primary_results
-    }
-    audit_by_id = {
-        row["revised_claim_id"]: row for row in audit_rows
-    }
-    independent_by_id = {
-        row["revised_claim_id"]: row for row in independent_rows
-    }
-    settings = config["revised_factuality_consensus"]
-    accepted_labels = set(settings["accepted_prediction_labels"])
-    consensus_rows: list[dict[str, Any]] = []
-    for unit in units:
-        claim_id = unit["revised_claim_id"]
-        primary = primary_by_id[claim_id]
-        audit = audit_by_id[claim_id]
-        independent = independent_by_id[claim_id]
-        reasons: list[str] = []
-        if audit["deterministic_flags"]:
-            reasons.append("PRIMARY_POLICY_FLAG")
-        if primary["prediction"] != independent["prediction"]:
-            reasons.append("MODEL_DISAGREEMENT")
-        if independent["prediction"] not in accepted_labels:
-            reasons.append("NO_UNCONFLICTED_DIRECT_EVIDENCE")
-        accepted = not reasons
-        consensus_rows.append(
-            {
-                "schema_version": (
-                    "cove_revised_claim_factuality_consensus_v1"
-                ),
-                **unit,
-                "primary_model": primary["model"],
-                "primary_model_digest": primary["model_digest"],
-                "primary_prediction": primary["prediction"],
-                "primary_confidence": primary["confidence"],
-                "primary_rationale": primary["rationale"],
-                "primary_policy_flags": audit["deterministic_flags"],
-                "independent_model": independent["model"],
-                "independent_model_digest": independent["model_digest"],
-                "independent_prediction": independent["prediction"],
-                "independent_evidence_status": independent[
-                    "evidence_status"
-                ],
-                "independent_passage_assessments": independent[
-                    "passage_assessments"
-                ],
-                "model_agreement": (
-                    primary["prediction"] == independent["prediction"]
-                ),
-                "consensus_status": (
-                    "ACCEPTED_DIRECT_AGREEMENT"
-                    if accepted
-                    else "UNRESOLVED"
-                ),
-                "consensus_prediction": (
-                    primary["prediction"] if accepted else "UNKNOWN"
-                ),
-                "unresolved_reasons": reasons,
-                "high_impact": audit["high_impact"],
-                "high_impact_roles": audit["high_impact_roles"],
-                "evaluation_tier": (
-                    "blind_cross_family_direct_evidence_consensus"
-                ),
-            }
-        )
-    pseudo_results = [
-        {
-            "revised_claim_id": row["revised_claim_id"],
-            "status": "ok",
-            "prediction": row["consensus_prediction"],
-            "confidence": None,
-            "rationale": row["consensus_status"],
-        }
-        for row in consensus_rows
-    ]
-    initial_outcomes, added_outcomes = build_b6c_outcomes(
-        paths,
-        args.split,
-        pseudo_results,
-    )
-    for row in initial_outcomes:
-        row["schema_version"] = "cove_consensus_initial_claim_outcome_v1"
-        row["evaluation_tier"] = (
-            "blind_cross_family_direct_evidence_consensus"
-        )
-        row["audit_status"] = "b6b_alignment_still_requires_gate"
-    for row in added_outcomes:
-        row["schema_version"] = "cove_consensus_added_claim_outcome_v1"
-        row["evaluation_tier"] = (
-            "blind_cross_family_direct_evidence_consensus"
-        )
-        row["audit_status"] = "b6b_alignment_still_requires_gate"
-    pairs = [
-        (row["primary_prediction"], row["independent_prediction"])
-        for row in consensus_rows
-    ]
-    cross_tab: defaultdict[str, Counter[str]] = defaultdict(Counter)
-    for left, right in pairs:
-        cross_tab[left][right] += 1
-    accepted = [
-        row
-        for row in consensus_rows
-        if row["consensus_status"] == "ACCEPTED_DIRECT_AGREEMENT"
-    ]
-    high_impact = [row for row in consensus_rows if row["high_impact"]]
-    accepted_high = [
-        row
-        for row in high_impact
-        if row["consensus_status"] == "ACCEPTED_DIRECT_AGREEMENT"
-    ]
-    consensus_coverage = len(accepted) / len(consensus_rows)
-    high_impact_coverage = (
-        len(accepted_high) / len(high_impact) if high_impact else 1.0
-    )
-    factuality_gate_passed = (
-        consensus_coverage
-        >= float(
-            settings["minimum_consensus_coverage_for_factuality_gate"]
-        )
-        and high_impact_coverage
-        >= float(
-            settings[
-                "minimum_high_impact_coverage_for_factuality_gate"
-            ]
-        )
-    )
-    unresolved_counts = Counter(
-        reason
-        for row in consensus_rows
-        for reason in row["unresolved_reasons"]
-    )
-    kappa = cohen_kappa_from_pairs(
-        pairs,
-        ("FACTUAL", "NON_FACTUAL", "UNKNOWN"),
-    )
-    summary = {
-        "schema_version": "cove_factuality_consensus_summary_v1",
-        "experiment": config["experiment"],
-        "stage": "B6d_revised_claim_factuality_consensus",
-        "split": args.split,
-        "completion_status": "complete",
-        "claim_count": len(consensus_rows),
-        "primary_model": primary_results[0]["model"],
-        "primary_model_digest": primary_results[0]["model_digest"],
-        "independent_model": independent_rows[0]["model"],
-        "independent_model_digest": independent_rows[0]["model_digest"],
-        "cross_family_model_requirement_satisfied": (
-            primary_results[0]["model_digest"]
-            != independent_rows[0]["model_digest"]
-        ),
-        "raw_agreement_count": sum(
-            left == right for left, right in pairs
-        ),
-        "raw_agreement_rate": round(
-            sum(left == right for left, right in pairs) / len(pairs),
-            4,
-        ),
-        "cohen_kappa_without_gold": (
-            None if kappa is None else round(kappa, 4)
-        ),
-        "cross_tab_primary_by_independent": {
-            label: dict(sorted(counts.items()))
-            for label, counts in sorted(cross_tab.items())
-        },
-        "accepted_consensus_claims": len(accepted),
-        "consensus_prediction_counts": dict(
-            Counter(
-                row["consensus_prediction"] for row in consensus_rows
-            )
-        ),
-        "consensus_coverage": round(consensus_coverage, 4),
-        "high_impact_claims": len(high_impact),
-        "accepted_high_impact_claims": len(accepted_high),
-        "high_impact_consensus_coverage": round(
-            high_impact_coverage,
-            4,
-        ),
-        "unresolved_reason_counts": dict(
-            sorted(unresolved_counts.items())
-        ),
-        "provisional_initial_outcome_counts": dict(
-            sorted(
-                Counter(
-                    row["provisional_outcome"]
-                    for row in initial_outcomes
-                ).items()
-            )
-        ),
-        "provisional_added_outcome_counts": dict(
-            sorted(
-                Counter(
-                    row["provisional_outcome"]
-                    for row in added_outcomes
-                ).items()
-            )
-        ),
-        "factuality_gate": {
-            "minimum_consensus_coverage": settings[
-                "minimum_consensus_coverage_for_factuality_gate"
-            ],
-            "minimum_high_impact_coverage": settings[
-                "minimum_high_impact_coverage_for_factuality_gate"
-            ],
-            "passed": factuality_gate_passed,
-        },
-        "alignment_gate": {
-            "passed": False,
-            "status": (
-                "pending_independent_B6b_alignment_reliability_gate"
-            ),
-        },
-        "heldout_ready": False,
-        "heldout_readiness_reason": (
-            "factuality gate result is reported here; B6b alignment "
-            "reliability remains a separate required gate"
-        ),
-        "interpretation_notes": [
-            "Cross-model agreement is not accuracy because revised claims lack human-gold labels.",
-            "Only direct, unconflicted passage evidence with exact cross-family label agreement is accepted.",
-            "Primary policy flags force UNKNOWN even when the models agree.",
-            "B6b alignment remains unaudited, so consensus transition outcomes are still provisional.",
-        ],
-    }
-    atomic_write_jsonl(
-        paths.factuality_consensus_results(args.split),
-        consensus_rows,
-    )
-    atomic_write_jsonl(
-        paths.consensus_initial_outcomes(args.split),
-        initial_outcomes,
-    )
-    if added_outcomes:
-        atomic_write_jsonl(
-            paths.consensus_added_outcomes(args.split),
-            added_outcomes,
-        )
-    else:
-        atomic_write_text(paths.consensus_added_outcomes(args.split), "")
-    atomic_write_json(
-        paths.factuality_consensus_summary_json(args.split),
-        summary,
-    )
-    lines = [
-        "# Experiment B — B6d Cross-Family Factuality Consensus",
-        "",
-        f"- Split: `{args.split}`",
-        f"- Claims: {len(consensus_rows)}",
-        f"- Raw model agreement: {summary['raw_agreement_rate']}",
-        f"- Cohen's kappa (agreement only): {summary['cohen_kappa_without_gold']}",
-        (
-            "- Accepted direct consensus: "
-            f"{len(accepted)}/{len(consensus_rows)} "
-            f"({summary['consensus_coverage']})"
-        ),
-        (
-            "- Accepted high-impact consensus: "
-            f"{len(accepted_high)}/{len(high_impact)} "
-            f"({summary['high_impact_consensus_coverage']})"
-        ),
-        (
-            "- Development factuality gate: **"
-            f"{'PASS' if factuality_gate_passed else 'FAIL'}**"
-        ),
-        "- Held-out ready: **no — independent alignment gate pending**",
-        "",
-        "## Primary × independent labels",
-        "",
-        "| Primary | Independent counts |",
-        "|---|---|",
-    ]
-    for label, counts in summary[
-        "cross_tab_primary_by_independent"
-    ].items():
-        text = json.dumps(counts, sort_keys=True).replace("|", "\\|")
-        lines.append(f"| `{label}` | `{text}` |")
-    lines.extend(
-        [
-            "",
-            "Agreement is not accuracy. This gate only removes explicit "
-            "primary-policy violations, cross-family disagreements, and "
-            "claims without unconflicted direct passage evidence. B6b "
-            "alignment remains a separate source of transition error.",
-            "",
-        ]
-    )
-    atomic_write_text(
-        paths.factuality_consensus_summary_markdown(args.split),
-        "\n".join(lines),
-    )
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-    return 0 if factuality_gate_passed else 2
-
-
-def factuality_calibration_units(
-    paths: Any,
-    config: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Load the exact 121 matched development claims without model labels."""
-
-    settings = config["factuality_calibration"]
-    if settings.get("split") != "dev":
-        raise ValueError("B6e calibration must remain development-only")
-    query_path = PROJECT_ROOT / settings["frozen_queries_path"]
-    gold_path = PROJECT_ROOT / settings["gold_claims_path"]
-    split_path = PROJECT_ROOT / settings["split_manifest_path"]
-    queries = load_jsonl(query_path)
-    gold_rows = load_jsonl(gold_path)
-    split_rows = load_jsonl(split_path)
-    expected_count = int(settings["expected_claims"])
-    expected_responses = int(settings["expected_matched_responses"])
-    dev_split = [
-        row
-        for row in split_rows
-        if row.get("split") == "dev"
-        and row.get("in_primary_matched_cohort") is True
-    ]
-    dev_ids = {str(row["claim_id"]) for row in dev_split}
-    if len(dev_split) != expected_count or len(dev_ids) != expected_count:
-        raise ValueError(
-            f"B6e expected {expected_count} unique dev matched claims, "
-            f"found rows={len(dev_split)}, unique={len(dev_ids)}"
-        )
-    if len({str(row["response_id"]) for row in dev_split}) != expected_responses:
-        raise ValueError(
-            f"B6e expected {expected_responses} matched development responses"
-        )
-    query_ids = [str(row["query_id"]) for row in queries]
-    if len(query_ids) != expected_count or set(query_ids) != dev_ids:
-        raise ValueError("Frozen dev query IDs differ from the matched dev set")
-    if any(row.get("split") != "dev" for row in queries):
-        raise ValueError("B6e frozen query file contains a non-dev query")
-    gold_by_id = {
-        str(row["claim_id"]): row
-        for row in gold_rows
-        if str(row.get("claim_id")) in dev_ids
-    }
-    if set(gold_by_id) != dev_ids:
-        raise ValueError("Canonical gold file does not cover exact B6e IDs")
-    units: list[dict[str, Any]] = []
-    evaluation_records: list[dict[str, Any]] = []
-    for query in queries:
-        claim_id = str(query["query_id"])
-        gold = gold_by_id[claim_id]
-        claim_text = str(query["text"]).strip()
-        if claim_text != str(gold["gold_claim"]).strip():
-            raise ValueError(f"Frozen query/gold claim mismatch: {claim_id}")
-        if query.get("ranking_field_policy") != "gold_claim_text_only":
-            raise ValueError(f"Unexpected ranking field policy: {claim_id}")
-        if gold.get("human_label") not in {"FACTUAL", "NON_FACTUAL"}:
-            raise ValueError(f"Non-binary B6e gold label: {claim_id}")
-        unit = {
-            "claim_id": claim_id,
-            "response_id": str(gold["response_id"]),
-            "source_record_index": int(gold["source_record_index"]),
-            "split": "dev",
-            "claim_text": claim_text,
-            "claim_sha256": sha256_text(claim_text),
-        }
-        units.append(unit)
-        evaluation_records.append(
-            {
-                **unit,
-                "human_label": gold["human_label"],
-            }
-        )
-    return units, evaluation_records
-
-
-def validate_factuality_calibration_evidence(
-    rows: list[dict[str, Any]],
-    units: list[dict[str, Any]],
-    config: dict[str, Any],
-) -> None:
-    expected = {row["claim_id"]: row for row in units}
-    top_k = int(config["factuality_calibration"]["evidence_top_k"])
-    seen: set[str] = set()
-    for row in rows:
-        claim_id = row.get("claim_id")
-        if claim_id not in expected or claim_id in seen:
-            raise ValueError(f"Unexpected/duplicate B6e evidence ID: {claim_id}")
-        seen.add(str(claim_id))
-        unit = expected[str(claim_id)]
-        for field in (
-            "response_id",
-            "source_record_index",
-            "split",
-            "claim_text",
-            "claim_sha256",
-        ):
-            if row.get(field) != unit[field]:
-                raise ValueError(
-                    f"B6e evidence mismatch for {claim_id}: {field}"
-                )
-        items = row.get("items")
-        if not isinstance(items, list) or len(items) != top_k:
-            raise ValueError(f"B6e evidence must contain top-{top_k}: {claim_id}")
-        if [item.get("rank") for item in items] != list(range(1, top_k + 1)):
-            raise ValueError(f"B6e evidence ranks are invalid: {claim_id}")
-        for item in items:
-            text = item.get("text")
-            if not isinstance(text, str) or not text.strip():
-                raise ValueError(f"B6e evidence contains empty text: {claim_id}")
-            if item.get("text_sha256") != sha256_text(text):
-                raise ValueError(f"B6e evidence hash mismatch: {claim_id}")
-        normalized = row.get("normalized_text")
-        if (
-            not isinstance(normalized, str)
-            or row.get("normalized_sha256") != sha256_text(normalized)
-        ):
-            raise ValueError(f"B6e normalized evidence invalid: {claim_id}")
-        forbidden = {
-            "human_label",
-            "gold_evidence",
-            "gold_evidence_text",
-            "gold_evidence_stance",
-            "qrels",
-            "canonical_url",
-            "raw_url",
-        }
-        if forbidden.intersection(row):
-            raise ValueError(f"B6e evidence leaks evaluation fields: {claim_id}")
-    if seen != set(expected):
-        raise ValueError("B6e evidence does not cover the exact dev claim set")
-
-
-def prepare_factuality_calibration(args: argparse.Namespace) -> int:
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    settings = config["factuality_calibration"]
-    units, _ = factuality_calibration_units(paths, config)
-    corpus_paths = retrieval_paths(PROJECT_ROOT, args.scope)
-    run_path = PROJECT_ROOT / settings["frozen_hybrid_run_path"]
-    queries_path = PROJECT_ROOT / settings["frozen_queries_path"]
-    hybrid_rows = load_jsonl(run_path)
-    passages = load_jsonl(corpus_paths.passages)
-    passage_by_id = {row["passage_id"]: row for row in passages}
-    top_k = int(settings["evidence_top_k"])
-    ranked: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    unit_ids = {unit["claim_id"] for unit in units}
-    for row in hybrid_rows:
-        if row.get("query_id") in unit_ids and int(row["rank"]) <= top_k:
-            ranked[str(row["query_id"])].append(row)
-    evidence_rows: list[dict[str, Any]] = []
-    for unit in units:
-        claim_id = unit["claim_id"]
-        run_rows = sorted(
-            ranked.get(claim_id, []),
-            key=lambda row: int(row["rank"]),
-        )
-        if [int(row["rank"]) for row in run_rows] != list(
-            range(1, top_k + 1)
-        ):
-            raise ValueError(f"Frozen Hybrid top-{top_k} incomplete: {claim_id}")
-        items: list[dict[str, Any]] = []
-        visible: list[str] = []
-        for run_row in run_rows:
-            passage_id = str(run_row["passage_id"])
-            if passage_id not in passage_by_id:
-                raise ValueError(f"Unknown frozen passage ID: {passage_id}")
-            passage = passage_by_id[passage_id]
-            text = str(passage["text"]).strip()
-            rank = int(run_row["rank"])
-            visible.append(
-                f"Passage {rank} text (JSON-encoded): "
-                f"{json.dumps(text, ensure_ascii=False)}"
-            )
-            items.append(
-                {
-                    "rank": rank,
-                    "passage_id": passage_id,
-                    "doc_id": str(run_row["doc_id"]),
-                    "retrieval_score": float(run_row["score"]),
-                    "text": text,
-                    "text_sha256": sha256_text(text),
-                }
-            )
-        normalized = "\n\n".join(visible)
-        evidence_rows.append(
-            {
-                "schema_version": "cove_factuality_calibration_evidence_v1",
-                **unit,
-                "retriever": settings["retriever"],
-                "top_k": top_k,
-                "items": items,
-                "normalized_text": normalized,
-                "normalized_sha256": sha256_text(normalized),
-                "queries_sha256": sha256_file(queries_path),
-                "hybrid_run_sha256": sha256_file(run_path),
-                "passages_sha256": sha256_file(corpus_paths.passages),
-                "model_visible_fields": config["leakage_policy"][
-                    "factuality_calibration_model_input_fields"
-                ],
-                "withheld_fields": config["leakage_policy"][
-                    "factuality_calibration_withheld_fields"
-                ],
-                "created_at": utc_now(),
-            }
-        )
-    validate_factuality_calibration_evidence(evidence_rows, units, config)
-    report = {
-        "stage": "B6e_prepare_factuality_calibration",
-        "split": "dev",
-        "claim_count": len(evidence_rows),
-        "response_count": len({row["response_id"] for row in evidence_rows}),
-        "retriever": settings["retriever"],
-        "top_k": top_k,
-        "ranking_reused_without_reranking": True,
-        "human_labels_or_qrels_used_for_ranking": False,
-        "heldout_touched": False,
-        "output": str(
-            paths.factuality_calibration_evidence.relative_to(PROJECT_ROOT)
-        ),
-    }
-    if args.dry_run:
-        report["dry_run"] = True
-        print(json.dumps(report, ensure_ascii=False, indent=2))
-        return 0
-    atomic_write_jsonl(paths.factuality_calibration_evidence, evidence_rows)
-    report["output_sha256"] = sha256_file(
-        paths.factuality_calibration_evidence
-    )
-    print(json.dumps(report, ensure_ascii=False, indent=2))
-    return 0
-
-
-def load_factuality_calibration_context(
-    paths: Any,
-    config: dict[str, Any],
-) -> tuple[
-    list[dict[str, Any]],
-    list[dict[str, Any]],
-    list[dict[str, Any]],
-]:
-    units, evaluation_records = factuality_calibration_units(paths, config)
-    evidence_path = paths.factuality_calibration_evidence
-    if not evidence_path.exists():
-        raise FileNotFoundError(
-            "Run prepare-factuality-calibration before model calibration"
-        )
-    evidence_rows = load_jsonl(evidence_path)
-    validate_factuality_calibration_evidence(evidence_rows, units, config)
-    return units, evaluation_records, evidence_rows
-
-
-def build_factuality_calibration_run_config(
-    paths: Any,
-    config: dict[str, Any],
-    *,
-    evaluator: str,
-    model_digest: str,
-) -> dict[str, Any]:
-    settings = (
-        config["revised_claim_factuality"]
-        if evaluator == "qwen"
-        else config["independent_revised_claim_adjudication"]
-    )
-    prompt_path = PROJECT_ROOT / settings["prompt_path"]
-    schema = (
-        make_revised_factuality_output_schema(config)
-        if evaluator == "qwen"
-        else make_independent_adjudication_output_schema(config)
-    )
-    payload = {
-        "experiment": config["experiment"],
-        "stage": f"B6e_factuality_calibration_{evaluator}",
-        "split": "dev",
-        "evaluation_unit": "one_blind_model_call_per_gold_dev_claim",
-        "evaluator": evaluator,
-        "model": settings["model"],
-        "model_digest": model_digest,
-        "temperature": float(settings["temperature"]),
-        "seed": int(settings["seed"]),
-        "num_predict": int(settings["num_predict"]),
-        "think": bool(settings["think"]),
-        "timeout_seconds": float(settings["timeout_seconds"]),
-        "max_retries": int(settings["max_retries"]),
-        "max_consecutive_request_errors": int(
-            settings["max_consecutive_request_errors"]
-        ),
-        "prompt_version": settings["prompt_version"],
-        "prompt_sha256": sha256_file(prompt_path),
-        "result_schema_version": f"cove_factuality_calibration_{evaluator}_v1",
-        "output_schema_sha256": canonical_json_hash(schema),
-        "evidence_sha256": sha256_file(
-            paths.factuality_calibration_evidence
-        ),
-        "model_input_fields": config["leakage_policy"][
-            "factuality_calibration_model_input_fields"
-        ],
-        "withheld_fields": config["leakage_policy"][
-            "factuality_calibration_withheld_fields"
-        ],
-    }
-    return {**payload, "run_fingerprint": canonical_json_hash(payload)}
-
-
-def factuality_calibration_result_base(
-    unit: dict[str, Any],
-    evidence: dict[str, Any],
-    run_config: dict[str, Any],
-) -> dict[str, Any]:
-    return {
-        "result_schema_version": run_config["result_schema_version"],
-        **unit,
-        "stage": run_config["stage"],
-        "evaluation_unit": run_config["evaluation_unit"],
-        "evaluator": run_config["evaluator"],
-        "evidence_items": evidence["items"],
-        "evidence_normalized_sha256": evidence["normalized_sha256"],
-        "model_input_fields": run_config["model_input_fields"],
-        "withheld_fields": run_config["withheld_fields"],
-        "model": run_config["model"],
-        "model_digest": run_config["model_digest"],
-        "temperature": run_config["temperature"],
-        "seed": run_config["seed"],
-        "num_predict": run_config["num_predict"],
-        "think": run_config["think"],
-        "timeout_seconds": run_config["timeout_seconds"],
-        "max_retries": run_config["max_retries"],
-        "prompt_version": run_config["prompt_version"],
-        "prompt_sha256": run_config["prompt_sha256"],
-        "output_schema_sha256": run_config["output_schema_sha256"],
-        "evidence_sha256": run_config["evidence_sha256"],
-        "run_fingerprint": run_config["run_fingerprint"],
-    }
-
-
-def validate_factuality_calibration_results(
-    rows: list[dict[str, Any]],
-    units: list[dict[str, Any]],
-    evidence_by_id: dict[str, dict[str, Any]],
-    run_config: dict[str, Any],
-) -> None:
-    expected = {unit["claim_id"]: unit for unit in units}
-    seen: set[str] = set()
-    evaluator = run_config["evaluator"]
-    for row in rows:
-        claim_id = row.get("claim_id")
-        if claim_id not in expected or claim_id in seen:
-            raise ValueError(
-                f"Unexpected/duplicate B6e {evaluator} result: {claim_id}"
-            )
-        seen.add(str(claim_id))
-        base = factuality_calibration_result_base(
-            expected[str(claim_id)],
-            evidence_by_id[str(claim_id)],
-            run_config,
-        )
-        for key, value in base.items():
-            if row.get(key) != value:
-                raise ValueError(
-                    f"Incompatible B6e {evaluator} result "
-                    f"{claim_id}: {key}"
-                )
-        status = row.get("status")
-        if status not in {"ok", "request_error", "parse_error"}:
-            raise ValueError(f"Invalid B6e result status: {claim_id}")
-        if status == "ok":
-            if evaluator == "qwen":
-                parsed = parse_revised_factuality_output(
-                    json.dumps(
-                        {
-                            "prediction": row.get("prediction"),
-                            "confidence": row.get("confidence"),
-                            "rationale": row.get("rationale"),
-                        },
-                        ensure_ascii=False,
-                    )
-                )
-            else:
-                parsed = parse_independent_adjudication_output(
-                    json.dumps(
-                        {
-                            "passage_assessments": row.get(
-                                "passage_assessments"
-                            )
-                        },
-                        ensure_ascii=False,
-                    )
-                )
-            for key in ("prediction",):
-                if row.get(key) != parsed.get(key):
-                    raise ValueError(
-                        f"Non-canonical B6e prediction: {claim_id}"
-                    )
-
-
-def process_factuality_calibration_unit(
-    unit: dict[str, Any],
-    evidence: dict[str, Any],
-    template: str,
-    config: dict[str, Any],
-    run_config: dict[str, Any],
-    client: Any,
-) -> dict[str, Any]:
-    evaluator = run_config["evaluator"]
-    result = factuality_calibration_result_base(unit, evidence, run_config)
-    prompt = template.replace(
-        "{revised_claim_json}",
-        json.dumps(unit["claim_text"], ensure_ascii=False),
-    ).replace("{retrieved_evidence_text}", evidence["normalized_text"])
-    schema = (
-        make_revised_factuality_output_schema(config)
-        if evaluator == "qwen"
-        else make_independent_adjudication_output_schema(config)
-    )
-    raw_output: str | None = None
-    metadata: dict[str, Any] = {}
-    request_error: Exception | None = None
-    attempts = 0
-    started = time.perf_counter()
-    for attempt in range(run_config["max_retries"] + 1):
-        attempts = attempt + 1
-        try:
-            raw_output, metadata = call_ollama(
-                client,
-                run_config,
-                schema,
-                prompt,
-            )
-            request_error = None
-            break
-        except Exception as error:
-            request_error = error
-            if attempt < run_config["max_retries"]:
-                time.sleep(1.0)
-    result.update(
-        {
-            "attempts": attempts,
-            "latency_seconds": round(time.perf_counter() - started, 4),
-            "raw_model_output": raw_output,
-            "ollama_metadata": metadata,
-            "created_at": utc_now(),
-        }
-    )
-    if request_error is not None:
-        result.update(
-            {
-                "status": "request_error",
-                "prediction": None,
-                "error": f"{type(request_error).__name__}: {request_error}",
-            }
-        )
-        return result
-    try:
-        parsed = (
-            parse_revised_factuality_output(raw_output or "")
-            if evaluator == "qwen"
-            else parse_independent_adjudication_output(raw_output or "")
-        )
-    except Exception as error:
-        result.update(
-            {
-                "status": "parse_error",
-                "prediction": None,
-                "error": f"{type(error).__name__}: {error}",
-            }
-        )
-        return result
-    result.update({"status": "ok", **parsed, "error": None})
-    return result
-
-
-def run_factuality_calibration(
-    args: argparse.Namespace,
-    *,
-    evaluator: str,
-) -> int:
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    units, _, evidence_rows = load_factuality_calibration_context(
-        paths,
-        config,
-    )
-    evidence_by_id = {row["claim_id"]: row for row in evidence_rows}
-    if evaluator == "qwen":
-        prompt_path, template = load_revised_factuality_prompt(config)
-        settings = config["revised_claim_factuality"]
-        output_path = paths.factuality_calibration_primary_results
-    else:
-        prompt_path, template = load_independent_adjudication_prompt(config)
-        settings = config["independent_revised_claim_adjudication"]
-        output_path = paths.factuality_calibration_independent_results
-    if args.dry_run:
-        run_config = build_factuality_calibration_run_config(
-            paths,
-            config,
-            evaluator=evaluator,
-            model_digest="DRY_RUN_NOT_CHECKED",
-        )
-        first = units[0]
-        prompt = template.replace(
-            "{revised_claim_json}",
-            json.dumps(first["claim_text"], ensure_ascii=False),
-        ).replace(
-            "{retrieved_evidence_text}",
-            evidence_by_id[first["claim_id"]]["normalized_text"],
-        )
-        print(
-            f"B6e {evaluator} dry run: 121 dev claims; "
-            f"model={settings['model']}; heldout untouched"
-        )
-        print(f"Prompt: {prompt_path.relative_to(PROJECT_ROOT)}")
-        print(f"Run fingerprint: {run_config['run_fingerprint']}")
-        print(f"\n--- Preview: {first['claim_id']} ---\n{prompt}")
-        print("\nNo Ollama calls were made and no files were written.")
-        return 0
-    client = Client(
-        host=args.ollama_host,
-        timeout=float(settings["timeout_seconds"]),
-    )
-    if evaluator == "qwen":
-        model_digest = preflight_revised_factuality_ollama(client, config)
-    else:
-        model_digest = preflight_independent_adjudicator(
-            client,
-            config,
-            split="dev",
-            paths=paths,
-        )
-        prior_path = paths.independent_factuality_results("dev")
-        if prior_path.exists():
-            prior = load_jsonl(prior_path)
-            prior_models = {row.get("model") for row in prior}
-            prior_digests = {row.get("model_digest") for row in prior}
-            if prior_models != {settings["model"]} or prior_digests != {
-                model_digest
-            }:
-                raise ValueError(
-                    "B6e Llama model/digest differs from completed B6d dev"
-                )
-    run_config = build_factuality_calibration_run_config(
-        paths,
-        config,
-        evaluator=evaluator,
-        model_digest=model_digest,
-    )
-    existing = load_jsonl(output_path) if output_path.exists() else []
-    if existing and not args.resume:
-        raise FileExistsError(f"Use --resume for existing output: {output_path}")
-    validate_factuality_calibration_results(
-        existing,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    result_by_id = {row["claim_id"]: row for row in existing}
-    pending = [
-        unit
-        for unit in units
-        if result_by_id.get(unit["claim_id"], {}).get("status") != "ok"
-    ]
-    print(
-        f"Experiment B B6e {evaluator}: total={len(units)}, "
-        f"retained_ok={len(units) - len(pending)}, pending={len(pending)}, "
-        f"model={settings['model']}",
-        flush=True,
-    )
-    order = {unit["claim_id"]: index for index, unit in enumerate(units)}
-    consecutive_errors = 0
-    max_consecutive = int(settings["max_consecutive_request_errors"])
-    for unit in pending:
-        claim_id = unit["claim_id"]
-        position = order[claim_id] + 1
-        action = (
-            "classifying claim"
-            if evaluator == "qwen"
-            else "adjudicating five passages"
-        )
-        print(
-            f"[{position}/{len(units)}] {claim_id} {action} ...",
-            flush=True,
-        )
-        result = process_factuality_calibration_unit(
-            unit,
-            evidence_by_id[claim_id],
-            template,
-            config,
-            run_config,
-            client,
-        )
-        result_by_id[claim_id] = result
-        atomic_write_jsonl(
-            output_path,
-            [
-                result_by_id[item["claim_id"]]
-                for item in units
-                if item["claim_id"] in result_by_id
-            ],
-        )
-        if result["status"] == "ok":
-            consecutive_errors = 0
-            detail = result["prediction"]
-            if evaluator == "llama":
-                counts = Counter(
-                    row["relation"]
-                    for row in result["passage_assessments"]
-                )
-                detail += f", relations={dict(counts)}"
-            print(
-                f"[{position}/{len(units)}] success, {detail}, "
-                f"{result['latency_seconds']:.1f}s",
-                flush=True,
-            )
-        else:
-            consecutive_errors = (
-                consecutive_errors + 1
-                if result["status"] == "request_error"
-                else 0
-            )
-            print(
-                f"[{position}/{len(units)}] {result['status']}: "
-                f"{result['error']}",
-                flush=True,
-            )
-            if consecutive_errors >= max_consecutive:
-                print(
-                    "Stopping at the configured request-error limit; rerun "
-                    "the same command to resume.",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                break
-    rows = [
-        result_by_id[unit["claim_id"]]
-        for unit in units
-        if unit["claim_id"] in result_by_id
-    ]
-    validate_factuality_calibration_results(
-        rows,
-        units,
-        evidence_by_id,
-        run_config,
-    )
-    statuses = Counter(
-        result_by_id.get(unit["claim_id"], {}).get("status", "missing")
-        for unit in units
-    )
-    print(
-        json.dumps(
-            {
-                "stage": run_config["stage"],
-                "claim_count": len(units),
-                "status_counts": dict(statuses),
-                "prediction_counts": dict(
-                    Counter(
-                        row["prediction"]
-                        for row in rows
-                        if row.get("status") == "ok"
-                    )
-                ),
-                "heldout_touched": False,
-                "output": str(output_path.relative_to(PROJECT_ROOT)),
-                "next_stage": (
-                    "run-factuality-calibration-independent"
-                    if evaluator == "qwen"
-                    else "analyze-factuality-calibration"
-                ),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
-    complete = statuses == Counter({"ok": len(units)})
-    return 0 if complete else 2
-
-
-def derive_calibrated_independent_prediction(
-    result: dict[str, Any],
-    *,
-    policy: str,
-) -> tuple[str, dict[str, int]]:
-    assessments = result["passage_assessments"]
-    item_by_rank = {
-        int(item["rank"]): item for item in result["evidence_items"]
-    }
-    supports = [
-        row for row in assessments if row["relation"] == "SUPPORTS"
-    ]
-    refutes = [
-        row for row in assessments if row["relation"] == "REFUTES"
-    ]
-    support_docs = {
-        item_by_rank[int(row["passage_rank"])]["doc_id"]
-        for row in supports
-    }
-    refute_docs = {
-        item_by_rank[int(row["passage_rank"])]["doc_id"]
-        for row in refutes
-    }
-    counts = {
-        "support_count": len(supports),
-        "refute_count": len(refutes),
-        "support_doc_count": len(support_docs),
-        "refute_doc_count": len(refute_docs),
-    }
-    if policy == "any_direct":
-        factual = counts["support_count"] >= 1 and not refutes
-    elif policy == "corroborated_support":
-        factual = counts["support_count"] >= 2 and not refutes
-    elif policy == "multi_document_support":
-        factual = counts["support_doc_count"] >= 2 and not refutes
-    else:
-        raise ValueError(f"Unknown B6e aggregation policy: {policy}")
-    non_factual = counts["refute_count"] >= 1 and not supports
-    if factual:
-        return "FACTUAL", counts
-    if non_factual:
-        return "NON_FACTUAL", counts
-    return "UNKNOWN", counts
-
-
-def analyze_factuality_calibration(args: argparse.Namespace) -> int:
-    paths = paths_for_args(args)
-    config = load_config(paths)
-    settings = config["factuality_calibration"]
-    units, records, evidence_rows = load_factuality_calibration_context(
-        paths,
-        config,
-    )
-    evidence_by_id = {row["claim_id"]: row for row in evidence_rows}
-    qwen_rows = load_jsonl(paths.factuality_calibration_primary_results)
-    llama_rows = load_jsonl(paths.factuality_calibration_independent_results)
-    if not qwen_rows or not llama_rows:
-        raise FileNotFoundError(
-            "Both B6e Qwen and Llama outputs are required for analysis"
-        )
-    qwen_digest = {row.get("model_digest") for row in qwen_rows}
-    llama_digest = {row.get("model_digest") for row in llama_rows}
-    if len(qwen_digest) != 1 or len(llama_digest) != 1:
-        raise ValueError("B6e output model digests are inconsistent")
-    qwen_config = build_factuality_calibration_run_config(
-        paths,
-        config,
-        evaluator="qwen",
-        model_digest=next(iter(qwen_digest)),
-    )
-    llama_config = build_factuality_calibration_run_config(
-        paths,
-        config,
-        evaluator="llama",
-        model_digest=next(iter(llama_digest)),
-    )
-    validate_factuality_calibration_results(
-        qwen_rows,
-        units,
-        evidence_by_id,
-        qwen_config,
-    )
-    validate_factuality_calibration_results(
-        llama_rows,
-        units,
-        evidence_by_id,
-        llama_config,
-    )
-    if (
-        {row["claim_id"] for row in qwen_rows}
-        != {unit["claim_id"] for unit in units}
-        or {row["claim_id"] for row in llama_rows}
-        != {unit["claim_id"] for unit in units}
-        or any(row.get("status") != "ok" for row in qwen_rows + llama_rows)
-    ):
-        raise ValueError("B6e model outputs must be technically complete")
-    qwen_by_id = {row["claim_id"]: row for row in qwen_rows}
-    llama_by_id = {row["claim_id"]: row for row in llama_rows}
-    policy_names = [
-        str(row["name"]) for row in settings["aggregation_policies"]
-    ]
-    protocol_results: dict[str, dict[str, dict[str, Any]]] = {
-        "qwen_primary": {
-            claim_id: {
-                "status": "ok",
-                "prediction": row["prediction"],
-            }
-            for claim_id, row in qwen_by_id.items()
-        }
-    }
-    prediction_rows: list[dict[str, Any]] = []
-    for record in records:
-        claim_id = record["claim_id"]
-        qwen_prediction = qwen_by_id[claim_id]["prediction"]
-        row: dict[str, Any] = {
-            "claim_id": claim_id,
-            "response_id": record["response_id"],
-            "human_label": record["human_label"],
-            "qwen_primary": qwen_prediction,
-        }
-        for policy in policy_names:
-            llama_prediction, counts = derive_calibrated_independent_prediction(
-                llama_by_id[claim_id],
-                policy=policy,
-            )
-            llama_name = f"llama_{policy}"
-            consensus_name = f"consensus_{policy}"
-            protocol_results.setdefault(llama_name, {})[claim_id] = {
-                "status": "ok",
-                "prediction": llama_prediction,
-            }
-            consensus_prediction = (
-                qwen_prediction
-                if qwen_prediction == llama_prediction
-                and qwen_prediction in {"FACTUAL", "NON_FACTUAL"}
-                else "UNKNOWN"
-            )
-            protocol_results.setdefault(consensus_name, {})[claim_id] = {
-                "status": "ok",
-                "prediction": consensus_prediction,
-            }
-            row[llama_name] = llama_prediction
-            row[consensus_name] = consensus_prediction
-            row[f"{policy}_passage_counts"] = counts
-        prediction_rows.append(row)
-    metrics: dict[str, dict[str, Any]] = {}
-    response_macro: dict[str, dict[str, Any]] = {}
-    for name, results in protocol_results.items():
-        metrics[name] = compute_binary_metrics(records, results)
-        _, response_macro[name] = build_response_aggregation(records, results)
-    comparisons = [
-        (f"{name}_minus_qwen_primary", name, "qwen_primary")
-        for name in protocol_results
-        if name != "qwen_primary"
-    ]
-    bootstrap = paired_response_cluster_bootstrap(
-        records,
-        protocol_results,
-        comparisons,
-        samples=int(settings["bootstrap_samples"]),
-        seed=int(settings["bootstrap_seed"]),
-    )
-    eligible_prefixes = tuple(settings["eligible_protocol_prefixes"])
-    candidates: list[dict[str, Any]] = []
-    for name, result in metrics.items():
-        if not name.startswith(eligible_prefixes):
-            continue
-        nf_precision = result["NON_FACTUAL"]["precision"]
-        passed = (
-            result["balanced_accuracy"] is not None
-            and result["balanced_accuracy"]
-            >= float(settings["minimum_balanced_accuracy"])
-            and result["coverage"] is not None
-            and result["coverage"] >= float(settings["minimum_coverage"])
-            and nf_precision is not None
-            and nf_precision
-            >= float(settings["minimum_non_factual_precision"])
-        )
-        candidates.append(
-            {
-                "protocol": name,
-                "passed_gate": passed,
-                "balanced_accuracy": result["balanced_accuracy"],
-                "macro_f1": result["macro_f1"],
-                "NON_FACTUAL_precision": nf_precision,
-                "coverage": result["coverage"],
-            }
-        )
-    passing = [row for row in candidates if row["passed_gate"]]
-    passing.sort(
-        key=lambda row: (
-            row["balanced_accuracy"],
-            row["macro_f1"],
-            row["NON_FACTUAL_precision"],
-            row["coverage"],
-        ),
-        reverse=True,
-    )
-    selected = passing[0]["protocol"] if passing else None
-    summary = {
-        "stage": "B6e_factuality_protocol_calibration",
-        "status": "complete",
-        "split": "dev",
-        "claim_count": len(records),
-        "response_count": len({row["response_id"] for row in records}),
-        "gold_label_counts": dict(
-            Counter(row["human_label"] for row in records)
-        ),
-        "protocol_metrics": metrics,
-        "equal_response_macro_metrics": response_macro,
-        "selection_policy": {
-            "eligible_protocol_prefixes": list(eligible_prefixes),
-            "qwen_primary_is_diagnostic_only": settings[
-                "qwen_primary_is_diagnostic_only"
-            ],
-            "primary_metric": settings["primary_selection_metric"],
-            "tie_break_metrics": settings["tie_break_metrics"],
-            "gates": {
-                "minimum_balanced_accuracy": settings[
-                    "minimum_balanced_accuracy"
-                ],
-                "minimum_coverage": settings["minimum_coverage"],
-                "minimum_non_factual_precision": settings[
-                    "minimum_non_factual_precision"
-                ],
-            },
-            "candidate_results": candidates,
-            "selected_protocol": selected,
-            "gate_passed": selected is not None,
-        },
-        "paired_response_cluster_bootstrap": bootstrap,
-        "heldout_touched": False,
-        "heldout_status": (
-            "sealed_pending_researcher_review_even_if_gate_passes"
-        ),
-        "limitations": [
-            "The 121 claims are a development calibration set, not a final test.",
-            "Gold labels are joined only during this data-only analysis.",
-            "The same frozen Hybrid top-5 evidence is used by both evaluators.",
-            "A selected aggregation policy must not be changed after held-out is opened.",
-        ],
-    }
-    atomic_write_jsonl(
-        paths.factuality_calibration_predictions,
-        prediction_rows,
-    )
-    atomic_write_json(paths.factuality_calibration_summary_json, summary)
-    lines = [
-        "# Experiment B — B6e Factuality-Protocol Calibration",
-        "",
-        "- Cohort: **121 matched claims from 19 matched responses within the "
-        "first-20-raw-response development boundary**",
-        "- Retrieval: frozen **Hybrid RRF top-5**; no reranking",
-        "- Held-out claims touched: **no**",
-        f"- Selected eligible protocol: **{selected or 'none'}**",
-        f"- Calibration gate passed: **{'yes' if selected else 'no'}**",
-        "",
-        "## Claim-weighted gold metrics",
-        "",
-        "| Protocol | Accuracy | Balanced accuracy | Macro-F1 | Coverage | "
-        "NON_FACTUAL precision | NON_FACTUAL recall |",
-        "|---|---:|---:|---:|---:|---:|---:|",
-    ]
-    for name, result in metrics.items():
-        def pct(value: float | None) -> str:
-            return "n/a" if value is None else f"{100 * value:.2f}%"
-
-        lines.append(
-            f"| `{name}` | "
-            f"{pct(result['accuracy_including_abstentions_and_errors'])} | "
-            f"{pct(result['balanced_accuracy'])} | "
-            f"{pct(result['macro_f1'])} | "
-            f"{pct(result['coverage'])} | "
-            f"{pct(result['NON_FACTUAL']['precision'])} | "
-            f"{pct(result['NON_FACTUAL']['recall'])} |"
-        )
-    lines.extend(
-        [
-            "",
-            "## Interpretation rule",
-            "",
-            "Qwen is reported as a diagnostic because it belongs to the same "
-            "model family used throughout the main CoVe pipeline. Eligible "
-            "selection is restricted to the independent Llama protocols and "
-            "their exact-label consensus with Qwen. UNKNOWN counts as "
-            "incorrect for accuracy, balanced accuracy, and macro-F1, while "
-            "coverage and selective accuracy describe abstention separately.",
-            "",
-            "Even if a protocol passes the preregistered development gate, "
-            "held-out remains sealed until the researcher reviews this report "
-            "and explicitly freezes the selected protocol.",
-            "",
-        ]
-    )
-    atomic_write_text(
-        paths.factuality_calibration_summary_markdown,
-        "\n".join(lines),
-    )
-    print(json.dumps(summary, ensure_ascii=False, indent=2))
-    return 0 if selected is not None else 2
-
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run staged FactCheck-Bench Experiment B CoVe evaluation."
+        description="Run staged FactCheck-Bench Study II CoVe evaluation."
     )
     subparsers = parser.add_subparsers(dest="stage", required=True)
 
@@ -11972,7 +9776,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     run_answer_evaluation_parser = subparsers.add_parser(
         "run-answer-evaluation",
         help=(
-            "Evaluate B3 answers against B2 candidate claims and oracle "
+            "Evaluate B3 answers against B2 candidate claims and benchmark-associated "
             "evidence, with human labels withheld."
         ),
     )
@@ -12204,7 +10008,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     prepare_revised_evidence_parser = subparsers.add_parser(
         "prepare-revised-claim-evidence",
         help=(
-            "Retrieve frozen Experiment A Hybrid RRF top-5 passages for "
+            "Retrieve frozen Study I Hybrid RRF top-5 passages for "
             "every B6a revised claim; no qrels or labels enter ranking."
         ),
     )
@@ -12319,156 +10123,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
     )
 
-    run_independent_factuality_parser = subparsers.add_parser(
-        "run-independent-factuality",
-        help=(
-            "Use a blind model from a different family to assess each of "
-            "five frozen passages per revised claim."
-        ),
-    )
-    run_independent_factuality_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    run_independent_factuality_parser.add_argument(
-        "--split",
-        choices=("dev", "heldout"),
-        default="dev",
-    )
-    run_independent_factuality_parser.add_argument(
-        "--resume",
-        action="store_true",
-    )
-    run_independent_factuality_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-    )
-    run_independent_factuality_parser.add_argument(
-        "--confirm-config-frozen",
-        action="store_true",
-        help="Required before held-out B6d independent adjudication.",
-    )
-    run_independent_factuality_parser.add_argument(
-        "--ollama-host",
-        default=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-    )
-
-    recover_independent_factuality_parser = subparsers.add_parser(
-        "recover-independent-factuality-format",
-        help=(
-            "Recover complete B6d JSON with unordered ranks or overlong "
-            "rationale wording without another model call."
-        ),
-    )
-    recover_independent_factuality_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    recover_independent_factuality_parser.add_argument(
-        "--split",
-        choices=("dev", "heldout"),
-        default="dev",
-    )
-
-    analyze_factuality_consensus_parser = subparsers.add_parser(
-        "analyze-factuality-consensus",
-        help=(
-            "Combine B6c and blind B6d results using the frozen conservative "
-            "direct-evidence consensus rule."
-        ),
-    )
-    analyze_factuality_consensus_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    analyze_factuality_consensus_parser.add_argument(
-        "--split",
-        choices=("dev", "heldout"),
-        default="dev",
-    )
-
-    prepare_factuality_calibration_parser = subparsers.add_parser(
-        "prepare-factuality-calibration",
-        help=(
-            "Build leakage-safe frozen Hybrid top-5 evidence for the exact "
-            "121 matched development claims."
-        ),
-    )
-    prepare_factuality_calibration_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    prepare_factuality_calibration_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-    )
-
-    run_factuality_calibration_primary_parser = subparsers.add_parser(
-        "run-factuality-calibration-primary",
-        help=(
-            "Run the frozen Qwen B6c-style verifier on 121 unlabelled "
-            "development claim/evidence inputs."
-        ),
-    )
-    run_factuality_calibration_primary_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    run_factuality_calibration_primary_parser.add_argument(
-        "--resume",
-        action="store_true",
-    )
-    run_factuality_calibration_primary_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-    )
-    run_factuality_calibration_primary_parser.add_argument(
-        "--ollama-host",
-        default=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-    )
-
-    run_factuality_calibration_independent_parser = subparsers.add_parser(
-        "run-factuality-calibration-independent",
-        help=(
-            "Run the frozen cross-family Llama passage adjudicator on the "
-            "same 121 development claim/evidence inputs."
-        ),
-    )
-    run_factuality_calibration_independent_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
-    run_factuality_calibration_independent_parser.add_argument(
-        "--resume",
-        action="store_true",
-    )
-    run_factuality_calibration_independent_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-    )
-    run_factuality_calibration_independent_parser.add_argument(
-        "--ollama-host",
-        default=os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-    )
-
-    analyze_factuality_calibration_parser = subparsers.add_parser(
-        "analyze-factuality-calibration",
-        help=(
-            "Join hidden dev gold labels, compare frozen aggregation "
-            "policies, bootstrap response clusters, and apply the gate."
-        ),
-    )
-    analyze_factuality_calibration_parser.add_argument(
-        "--scope",
-        choices=("full",),
-        default="full",
-    )
 
     branch_evaluation_parsers = (
         run_revised_claim_parser,
@@ -12486,7 +10140,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     for branch_parser in branch_evaluation_parsers:
         branch_parser.add_argument(
             "--branch",
-        choices=("a", "b", "c", "d2"),
+            choices=("a", "b", "c", "d2"),
             default="a",
             help=(
                 "Evaluate the canonical standard-CoVe branch (a) or an "
@@ -12527,7 +10181,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "run-revised-claim-alignment",
             "prepare-revised-claim-evidence",
             "run-revised-claim-factuality",
-            "run-independent-factuality",
         }
         and args.split == "heldout"
         and not args.confirm_config_frozen
@@ -12598,21 +10251,8 @@ def main(argv: list[str] | None = None) -> int:
         return recover_revised_claim_factuality_format(args)
     if args.stage == "prepare-factuality-audit":
         return prepare_primary_factuality_audit(args)
-    if args.stage == "run-independent-factuality":
-        return run_independent_factuality(args)
-    if args.stage == "recover-independent-factuality-format":
-        return recover_independent_factuality_format(args)
-    if args.stage == "analyze-factuality-consensus":
-        return analyze_factuality_consensus(args)
-    if args.stage == "prepare-factuality-calibration":
-        return prepare_factuality_calibration(args)
-    if args.stage == "run-factuality-calibration-primary":
-        return run_factuality_calibration(args, evaluator="qwen")
-    if args.stage == "run-factuality-calibration-independent":
-        return run_factuality_calibration(args, evaluator="llama")
-    if args.stage == "analyze-factuality-calibration":
-        return analyze_factuality_calibration(args)
-    raise ValueError(f"Unsupported Experiment B stage: {args.stage}")
+
+    raise ValueError(f"Unsupported Study II stage: {args.stage}")
 
 
 if __name__ == "__main__":

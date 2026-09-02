@@ -1,17 +1,7 @@
 #!/usr/bin/env python3
-"""Run the pilot or full oracle-evidence factuality verifier with local Ollama.
+"""Run the formal Benchmark-associated Evidence verifier with local Ollama.
 
-This stage reuses the proven request/parser primitives from 08b while keeping
-an independent oracle result schema.  The model receives only ``gold_claim``
-and normalized evidence passage text.  Gold labels and evidence annotation
-metadata are attached to the persisted result only after inference.
-
-Recommended sequence:
-
-1. Run ``--smoke-test --dry-run`` (no calls and no writes).
-2. Run ``--smoke-test`` into the automatically selected smoke paths.
-3. Inspect the smoke reports.
-4. Run or resume the full automatically derived oracle cohort.
+This stage reuses the request and parser primitives from the No Evidence condition while keeping an independent result schema. The model receives only ``gold_claim`` and normalized benchmark-associated evidence text. Human labels and evidence annotation metadata are attached to the persisted result only after inference. The frozen internal ``oracle_evidence`` field name is retained for compatibility with the recorded schema; it does not denote an infallible oracle.
 """
 
 from __future__ import annotations
@@ -78,77 +68,7 @@ sha256_text = _base.sha256_text
 preflight_ollama = _base.preflight_ollama
 report_path = _base.report_path
 
-DEFAULT_INPUT = (
-    PROJECT_ROOT
-    / "data"
-    / "factcheck_bench"
-    / "processed"
-    / "fcb_gold_claims_pilot_20.jsonl"
-)
-DEFAULT_NO_EVIDENCE_RESULTS = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "jsonl"
-    / "08b_no_evidence_verifier_results.jsonl"
-)
-DEFAULT_NO_EVIDENCE_JSON_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08b_no_evidence_verifier_summary.json"
-)
-DEFAULT_NO_EVIDENCE_MARKDOWN_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08b_no_evidence_verifier_report.md"
-)
 NO_EVIDENCE_PROMPT = PROJECT_ROOT / "prompts" / "no_evidence_verifier.txt"
-DEFAULT_OUTPUT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "jsonl"
-    / "08c_oracle_evidence_verifier_results.jsonl"
-)
-DEFAULT_JSON_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08c_oracle_evidence_verifier_summary.json"
-)
-DEFAULT_MARKDOWN_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08c_oracle_evidence_verifier_report.md"
-)
-DEFAULT_SMOKE_OUTPUT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "jsonl"
-    / "08c_oracle_evidence_smoke.jsonl"
-)
-DEFAULT_SMOKE_JSON_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08c_oracle_evidence_smoke_summary.json"
-)
-DEFAULT_SMOKE_MARKDOWN_REPORT = (
-    PROJECT_ROOT
-    / "outputs"
-    / "factcheck_bench_pilot"
-    / "reports"
-    / "08c_oracle_evidence_smoke_report.md"
-)
 DEFAULT_PROMPT = PROJECT_ROOT / "prompts" / "oracle_evidence_verifier.txt"
 FULL_PATHS = paths_for_scope(PROJECT_ROOT, "full")
 
@@ -229,9 +149,9 @@ def utc_now() -> str:
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run the FactCheck-Bench oracle-evidence verifier with Ollama."
+        description="Run the FactCheck-Bench Benchmark-associated Evidence verifier with Ollama."
     )
-    parser.add_argument("--scope", choices=SCOPES, default="pilot")
+    parser.add_argument("--scope", choices=SCOPES, default="full")
     parser.add_argument("--input", type=Path, default=None)
     parser.add_argument("--output", type=Path, default=None)
     parser.add_argument("--report", type=Path, default=None)
@@ -254,20 +174,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument("--limit", type=int, default=None)
     selection.add_argument("--claim-id", action="append", default=None)
-    selection.add_argument(
-        "--smoke-test",
-        action="store_true",
-        help="Select one eligible FACTUAL and one eligible NON_FACTUAL claim.",
-    )
-
     parser.add_argument("--temperature", type=float, default=0.0)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--num-predict", type=int, default=512)
     parser.add_argument("--timeout", type=float, default=180.0)
     parser.add_argument("--max-retries", type=int, default=1)
     parser.add_argument("--max-consecutive-request-errors", type=int, default=3)
-    parser.add_argument("--high-confidence-threshold", type=float, default=0.8)
-    parser.add_argument("--typical-error-limit", type=int, default=10)
 
     output_mode = parser.add_mutually_exclusive_group()
     output_mode.add_argument("--resume", action="store_true")
@@ -284,9 +196,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     args = parser.parse_args(argv)
-    output_explicit = args.output is not None
-    report_explicit = args.report is not None
-    markdown_explicit = args.markdown_report is not None
     defaults = paths_for_scope(PROJECT_ROOT, args.scope)
     args.input = args.input or defaults.gold_claims
     args.no_evidence_results = (
@@ -297,15 +206,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args.markdown_report = args.markdown_report or defaults.oracle_markdown
     validate_args(parser, args)
     args.selection_explicit = bool(
-        args.limit is not None or args.claim_id is not None or args.smoke_test
+        args.limit is not None or args.claim_id is not None
     )
-    if args.smoke_test:
-        if not output_explicit:
-            args.output = defaults.oracle_smoke_output
-        if not report_explicit:
-            args.report = defaults.oracle_smoke_report
-        if not markdown_explicit:
-            args.markdown_report = defaults.oracle_smoke_markdown
     return args
 
 
@@ -324,10 +226,6 @@ def validate_args(parser: argparse.ArgumentParser, args: argparse.Namespace) -> 
         parser.error("--max-retries cannot be negative")
     if args.max_consecutive_request_errors < 1:
         parser.error("--max-consecutive-request-errors must be at least 1")
-    if not 0.0 <= args.high_confidence_threshold <= 1.0:
-        parser.error("--high-confidence-threshold must be between 0 and 1")
-    if args.typical_error_limit < 0:
-        parser.error("--typical-error-limit cannot be negative")
     if args.report_only and (args.resume or args.overwrite):
         parser.error("--report-only cannot be combined with --resume/--overwrite")
 
@@ -350,7 +248,7 @@ def validate_write_path_safety(
         raise ValueError(f"Output/report paths must be distinct: {destinations}")
 
     scope_paths = paths_for_scope(
-        PROJECT_ROOT, getattr(args, "scope", "pilot")
+        PROJECT_ROOT, getattr(args, "scope", "full")
     )
     protected_sources = {
         canonical_path(args.input),
@@ -358,8 +256,8 @@ def validate_write_path_safety(
         canonical_path(args.no_evidence_results),
         canonical_path(BASE_SCRIPT),
         canonical_path(NO_EVIDENCE_PROMPT),
-        canonical_path(DEFAULT_NO_EVIDENCE_JSON_REPORT),
-        canonical_path(DEFAULT_NO_EVIDENCE_MARKDOWN_REPORT),
+        canonical_path(FULL_PATHS.no_evidence_report),
+        canonical_path(FULL_PATHS.no_evidence_markdown),
         canonical_path(scope_paths.no_evidence_report),
         canonical_path(scope_paths.no_evidence_markdown),
     }
@@ -387,28 +285,12 @@ def validate_write_path_safety(
         }
         if formal_collisions:
             raise ValueError(
-                "A partial/smoke run may not use a formal full-run output/report "
+                "A partial run may not use a formal full-cohort output/report "
                 f"path: {formal_collisions}"
             )
 
-    if getattr(args, "scope", "pilot") == "full":
-        pilot_paths = paths_for_scope(PROJECT_ROOT, "pilot")
-        pilot_root = canonical_path(pilot_paths.output_root)
-        pilot_collisions = {
-            name: str(path)
-            for name, path in destinations.items()
-            if path == pilot_root or pilot_root in path.parents
-        }
-        if pilot_collisions:
-            raise ValueError(
-                "Full scope may not write historical pilot artifacts: "
-                f"{pilot_collisions}"
-            )
 
-
-# Public compatibility names now delegate to the shared data module. Keeping
-# these names preserves existing tests/imports and, more importantly, makes the
-# preprocessing manifest and runtime oracle cohort use identical code.
+# Public compatibility names delegate to the shared data module so preprocessing and runtime cohort construction use identical normalization.
 normalize_evidence_text = shared_normalize_evidence_text
 normalize_oracle_evidence = shared_normalize_oracle_evidence
 
@@ -440,7 +322,6 @@ def select_records(
     cohort_audit: dict[str, Any],
     limit: int | None = None,
     claim_ids: list[str] | None = None,
-    smoke_test: bool = False,
 ) -> list[dict[str, Any]]:
     by_id = {record["claim_id"]: record for record in eligible_records}
     if claim_ids is not None:
@@ -453,17 +334,6 @@ def select_records(
             details = {claim_id: excluded_by_id.get(claim_id, "not_in_input") for claim_id in missing}
             raise ValueError(f"Requested claim IDs are not oracle-eligible: {details}")
         return [by_id[claim_id] for claim_id in claim_ids]
-    if smoke_test:
-        selected = []
-        for label in PRIMARY_LABELS:
-            match = next(
-                (record for record in eligible_records if record["human_label"] == label),
-                None,
-            )
-            if match is None:
-                raise ValueError(f"No eligible {label} claim is available for smoke test.")
-            selected.append(match)
-        return selected
     if limit is not None:
         return eligible_records[:limit]
     return eligible_records
@@ -1167,98 +1037,6 @@ def build_response_aggregation(
     return rows
 
 
-def build_confidence_analysis(
-    selected_records: list[dict[str, Any]],
-    result_by_id: dict[str, dict[str, Any]],
-    high_confidence_threshold: float,
-) -> dict[str, Any]:
-    pairs = [
-        (record, result_by_id.get(record["claim_id"]))
-        for record in selected_records
-    ]
-    ok_pairs = [
-        (record, result)
-        for record, result in pairs
-        if result is not None and result.get("status") == "ok"
-    ]
-    exact_scores: Counter[str] = Counter()
-    by_prediction: dict[str, list[float]] = defaultdict(list)
-    correct_scores: list[float] = []
-    incorrect_scores: list[float] = []
-    for record, result in ok_pairs:
-        score = float(result["confidence"])
-        exact_scores[f"{score:.6g}"] += 1
-        by_prediction[str(result["prediction"])].append(score)
-        if result["prediction"] == record["human_label"]:
-            correct_scores.append(score)
-        else:
-            incorrect_scores.append(score)
-
-    high_confidence_errors = [
-        record["claim_id"]
-        for record, result in ok_pairs
-        if result["prediction"] != record["human_label"]
-        and float(result["confidence"]) >= high_confidence_threshold
-    ]
-    return {
-        "semantics": "self-reported confidence that the selected label is appropriate",
-        "valid_prediction_count": len(ok_pairs),
-        "exact_score_counts": dict(sorted(exact_scores.items(), key=lambda item: float(item[0]))),
-        "by_prediction": {
-            label: {
-                "count": len(by_prediction.get(label, [])),
-                "mean": safe_mean(by_prediction.get(label, [])),
-            }
-            for label in LABELS
-        },
-        "mean_confidence_correct": safe_mean(correct_scores),
-        "mean_confidence_incorrect_or_abstained": safe_mean(incorrect_scores),
-        "high_confidence_threshold": high_confidence_threshold,
-        "high_confidence_error_count": len(high_confidence_errors),
-        "high_confidence_error_claim_ids": high_confidence_errors,
-        "calibration_warning": (
-            "This scalar is not a full class-probability distribution; multiclass "
-            "Brier score, log loss, and ECE are not computed."
-        ),
-    }
-
-
-def evidence_excerpt(record: dict[str, Any], max_chars: int = 260) -> str:
-    texts = [item["text"] for item in record["_oracle_evidence"]["items"]]
-    text = " | ".join(texts)
-    return text if len(text) <= max_chars else text[: max_chars - 1].rstrip() + "…"
-
-
-def build_typical_errors(
-    selected_records: list[dict[str, Any]],
-    result_by_id: dict[str, dict[str, Any]],
-    limit: int,
-) -> list[dict[str, Any]]:
-    rows = []
-    for record in selected_records:
-        result = result_by_id.get(record["claim_id"])
-        if (
-            result is None
-            or result.get("status") != "ok"
-            or result.get("prediction") == record["human_label"]
-        ):
-            continue
-        rows.append(
-            {
-                "claim_id": record["claim_id"],
-                "response_id": record["response_id"],
-                "gold_claim": record["gold_claim"],
-                "human_label": record["human_label"],
-                "prediction": result["prediction"],
-                "confidence": result["confidence"],
-                "rationale": result["rationale"],
-                "evidence_excerpt": evidence_excerpt(record),
-            }
-        )
-    rows.sort(key=lambda row: (-float(row["confidence"]), row["claim_id"]))
-    return rows[:limit]
-
-
 def build_summary(
     input_records: list[dict[str, Any]],
     eligible_records: list[dict[str, Any]],
@@ -1286,7 +1064,7 @@ def build_summary(
         claim_id for claim_id in paired_target_ids if claim_id in result_by_id
     ]
     paired_result_id_set = set(paired_result_ids)
-    formal_full_scope = getattr(args, "scope", "pilot") == "full"
+    formal_full_scope = getattr(args, "scope", "full") == "full"
     paired_record_id_set = (
         set(paired_target_ids) if formal_full_scope else paired_result_id_set
     )
@@ -1385,7 +1163,7 @@ def build_summary(
         "run_config": run_config,
         "input_and_cohort": {
             **cohort_audit,
-            "scope": getattr(args, "scope", "pilot"),
+            "scope": getattr(args, "scope", "full"),
             "selection_source": getattr(args, "selection_source", "unknown"),
             "selected_claim_count": len(selected_records),
             "selected_claim_ids": selected_ids,
@@ -1438,27 +1216,21 @@ def build_summary(
             ),
             "transitions": paired_transitions,
             "paired_response_cluster_bootstrap": {
-                "status": "not_implemented",
-                "todo": (
-                    "Use identical response_id cluster resamples for no-evidence "
-                    "and oracle metric differences; no reusable project tool exists."
+                "status": "computed_in_primary_heldout_analysis",
+                "implementation": (
+                    "scripts/run_retrieved_evidence_claim_verification.py applies identical "
+                    "response_id resamples to all three Study I evidence conditions."
                 ),
             },
         },
         "response_aggregation": response_rows,
         "response_macro_metrics": response_macro,
-        "confidence_analysis": build_confidence_analysis(
-            selected_records, result_by_id, args.high_confidence_threshold
-        ),
         "latency_seconds": {
             "count": len(latencies),
             "mean": safe_mean(latencies),
             "median": statistics.median(latencies) if latencies else None,
             "p95_nearest_rank": percentile(latencies, 0.95),
         },
-        "typical_errors": build_typical_errors(
-            selected_records, result_by_id, args.typical_error_limit
-        ),
         "leakage_audit": {
             "model_input_fields": ["gold_claim", "oracle_evidence_text"],
             "model_visible_evidence_item_fields": ["text"],
@@ -1485,7 +1257,7 @@ def build_summary(
             f"Paired metrics never compare the broader {cohort_audit['binary_claims']}-"
             "claim no-evidence cohort directly with the matched oracle cohort.",
             "Evidence stance is trace metadata only and was not sent to the model.",
-            "Response-level bootstrap intervals remain a documented follow-up TODO.",
+            "The formal paired response-cluster bootstrap is computed after the held-out Retrieved Evidence condition joins all three Study I settings.",
         ],
     }
 
@@ -1514,11 +1286,10 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
     matched_oracle = paired["oracle_metrics_on_matched_ids"]
     differences = paired["point_differences"]
     transitions = paired["transitions"]["named_transitions"]
-    confidence = summary["confidence_analysis"]
     response_macro = summary["response_macro_metrics"]
 
     lines = [
-        "# Oracle-Evidence Verifier Report",
+        "# Benchmark-Associated-Evidence Verifier Report",
         "",
         f"- Setting: `{summary['setting']}`",
         f"- Scope: `{cohort['scope']}`",
@@ -1571,7 +1342,7 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
         [
             f"| Technical success rate | {format_metric(technical['technical_success_rate'])} |",
             "",
-            "## Oracle primary binary metrics",
+            "## Benchmark-associated primary binary metrics",
             "",
             "Model `UNKNOWN` and technical failures remain in the overall denominator.",
             "",
@@ -1616,12 +1387,12 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "## Paired no-evidence vs oracle comparison",
+            "## Paired No Evidence vs Benchmark-associated Evidence comparison",
             "",
             f"All values below use the same **{paired['matched_claim_count']} claim IDs**. "
             f"The broader {cohort['binary_claims']}-claim no-evidence headline is not used.",
             "",
-            "| Metric | No evidence | Oracle evidence | Oracle − no evidence |",
+            "| Metric | No evidence | Benchmark-associated evidence | Benchmark-associated − no evidence |",
             "|---|---:|---:|---:|",
         ]
     )
@@ -1657,9 +1428,7 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "> Paired response-cluster bootstrap is intentionally not implemented here: "
-            "the repository contains no reusable bootstrap module. The summary records a "
-            "TODO to use identical response-cluster resamples for both settings.",
+            "> The formal response-cluster bootstrap is computed in the held-out Retrieved Evidence analysis after all three Study I conditions are joined on the same claims.",
             "",
             "## Response-level aggregation",
             "",
@@ -1686,46 +1455,6 @@ def build_markdown_report(summary: dict[str, Any]) -> str:
             f"{format_metric(row['coverage'])} | "
             f"{format_metric(row['macro_f1'])} |"
         )
-
-    lines.extend(
-        [
-            "",
-            "## Confidence distribution",
-            "",
-            "| Self-reported score | Count |",
-            "|---:|---:|",
-        ]
-    )
-    for score, count in confidence["exact_score_counts"].items():
-        lines.append(f"| {score} | {count} |")
-    lines.extend(
-        [
-            "",
-            f"- Mean confidence, correct: {format_metric(confidence['mean_confidence_correct'])}",
-            "- Mean confidence, incorrect/abstained: "
-            f"{format_metric(confidence['mean_confidence_incorrect_or_abstained'])}",
-            f"- High-confidence errors: {confidence['high_confidence_error_count']}",
-            "",
-            "> Confidence is a scalar self-report for the selected label, not a full "
-            "three-class probability distribution.",
-            "",
-            "## Typical errors and abstentions",
-            "",
-            "Evidence is shown only as a short excerpt; complete normalized evidence remains "
-            "traceable in the JSONL.",
-            "",
-            "| claim_id | Gold | Prediction | Confidence | Rationale | Evidence excerpt |",
-            "|---|---|---|---:|---|---|",
-        ]
-    )
-    for row in summary["typical_errors"]:
-        lines.append(
-            f"| `{row['claim_id']}` | `{row['human_label']}` | `{row['prediction']}` | "
-            f"{format_metric(row['confidence'])} | {markdown_escape(row['rationale'])} | "
-            f"{markdown_escape(row['evidence_excerpt'])} |"
-        )
-    if not summary["typical_errors"]:
-        lines.append("| — | — | — | — | No errors/abstentions in this selection. | — |")
 
     lines.extend(
         [
@@ -1803,39 +1532,10 @@ def main(argv: list[str] | None = None) -> int:
         cohort_audit,
         limit=args.limit,
         claim_ids=args.claim_id,
-        smoke_test=args.smoke_test,
     )
     args.selection_source = (
         "explicit_cli_selection" if args.selection_explicit else "default_full_cohort"
     )
-    if (
-        args.report_only
-        and args.scope == "pilot"
-        and not args.selection_explicit
-        and args.output.exists()
-    ):
-        unchecked_rows = load_jsonl_objects(args.output)
-        stored_ids = [row.get("claim_id") for row in unchecked_rows]
-        if any(not isinstance(claim_id, str) for claim_id in stored_ids):
-            raise ValueError("Cannot recover report-only selection from invalid claim IDs.")
-        if len(stored_ids) != len(set(stored_ids)):
-            raise ValueError("Cannot recover report-only selection from duplicate claim IDs.")
-        eligible_by_id_for_recovery = {
-            record["claim_id"]: record for record in eligible_records
-        }
-        unknown_ids = sorted(set(stored_ids) - set(eligible_by_id_for_recovery))
-        if unknown_ids:
-            raise ValueError(
-                "Cannot recover report-only selection; output contains ineligible IDs: "
-                f"{unknown_ids}"
-            )
-        stored_id_set = set(stored_ids)
-        selected_records = [
-            record
-            for record in eligible_records
-            if record["claim_id"] in stored_id_set
-        ]
-        args.selection_source = "recovered_from_report_only_output_ids"
     partial_selection = len(selected_records) != len(eligible_records)
     if not args.dry_run:
         validate_write_path_safety(args, partial_selection)

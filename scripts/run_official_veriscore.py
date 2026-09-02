@@ -223,23 +223,11 @@ def parse_args() -> argparse.Namespace:
         help="Validate code, environment, inputs, and credentials without API calls.",
     )
     parser.add_argument(
-        "--smoke-test",
-        action="store_true",
-        help=(
-            "Run one synthetic end-to-end DeepSeek/Serper example in ignored "
-            "work directories; do not analyse project responses."
-        ),
-    )
-    parser.add_argument(
         "--skip-analyze",
         action="store_true",
         help="Run official VeriScore but do not invoke the project X2 importer.",
     )
     args = parser.parse_args()
-    if args.preflight_only and args.smoke_test:
-        parser.error("--preflight-only and --smoke-test are mutually exclusive")
-    if args.smoke_test and args.skip_analyze:
-        parser.error("--skip-analyze is not applicable to --smoke-test")
     return args
 
 
@@ -272,78 +260,6 @@ def official_command(
         "--search_res_num",
         str(protocol["search_res_num"]),
     ]
-
-
-def run_smoke_test(
-    checkout: Path,
-    vendor_python: Path,
-    protocol: dict[str, Any],
-    environment: dict[str, str],
-) -> int:
-    vendor_data = checkout / "data"
-    (vendor_data / "cache").mkdir(parents=True, exist_ok=True)
-    input_name = "fcb_veriscore_deepseek_smoke.jsonl"
-    input_path = vendor_data / input_name
-    smoke_row = {
-        "question": "Who wrote Pride and Prejudice?",
-        "response": "Jane Austen wrote Pride and Prejudice.",
-        "model": "fcb_external_evaluator_smoke_only",
-        "prompt_source": "synthetic_smoke_test",
-    }
-    input_path.write_text(
-        json.dumps(smoke_row, ensure_ascii=False) + "\n", encoding="utf-8"
-    )
-    output_dir = PROJECT_ROOT / "work" / "veriscore_smoke_output"
-    cache_dir = PROJECT_ROOT / "work" / "veriscore_smoke_cache"
-    output_dir.mkdir(parents=True, exist_ok=True)
-    cache_dir.mkdir(parents=True, exist_ok=True)
-    print("[smoke] running one synthetic extraction/search/verification row", flush=True)
-    subprocess.run(
-        official_command(
-            vendor_python,
-            vendor_data,
-            input_name,
-            output_dir,
-            cache_dir,
-            protocol,
-        ),
-        cwd=checkout,
-        env=environment,
-        check=True,
-    )
-    result = (
-        output_dir
-        / "model_output"
-        / "verification_fcb_veriscore_deepseek_smoke_2.jsonl"
-    )
-    rows = [
-        json.loads(line)
-        for line in result.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
-    if len(rows) != 1:
-        raise ValueError(f"Smoke output expected one row, found {len(rows)}")
-    claims = rows[0].get("all_claims")
-    verifications = rows[0].get("claim_verification_result")
-    if not isinstance(claims, list) or not claims:
-        raise ValueError("Smoke output has no extracted claim")
-    if not isinstance(verifications, list) or not verifications:
-        raise ValueError("Smoke output has no verification result")
-    labels = {
-        str(item.get("verification_result", "")).strip().lower().rstrip(".")
-        for item in verifications
-        if isinstance(item, dict)
-    }
-    if not labels or not labels <= {"supported", "unsupported"}:
-        raise ValueError(f"Smoke output contains unexpected labels: {sorted(labels)}")
-    print(json.dumps({
-        "status": "smoke_test_complete",
-        "rows": 1,
-        "extracted_claims": len(claims),
-        "verification_labels": sorted(labels),
-        "output": str(result.relative_to(PROJECT_ROOT)),
-    }, ensure_ascii=False, indent=2))
-    return 0
 
 
 def main() -> int:
@@ -380,14 +296,6 @@ def main() -> int:
         return 2
     if args.preflight_only:
         return 0
-    if args.smoke_test:
-        return run_smoke_test(
-            checkout,
-            vendor_python,
-            protocol,
-            checked["environment"],
-        )
-
     vendor_data = checkout / "data"
     vendor_input = vendor_data / checked["official_input"].name
     shutil.copy2(checked["official_input"], vendor_input)

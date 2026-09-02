@@ -1,0 +1,54 @@
+{
+  "schema_version": "fcb_cove_external_veriscore_k_sensitivity_config_v1",
+  "status": "frozen",
+  "analysis": "VeriScore F1@K sensitivity on frozen held-out response scores",
+  "split": "heldout",
+  "inputs": {
+    "response_scores": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/vendor_output/X2_veriscore_response_scores_heldout.jsonl",
+    "primary_summary": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/reports/X2_veriscore_analysis_heldout_summary.json",
+    "external_veriscore_config": "data/factcheck_bench/cove/config/cove_external_veriscore_config.json"
+  },
+  "protocol": {
+    "k_min": 1,
+    "k_max": 20,
+    "k_step": 1,
+    "frozen_primary_k": 9,
+    "condition_estimator": "mean response-level VeriScore F1@K",
+    "recall_at_k": "min(supported_claim_count / K, 1)",
+    "f1_at_k": "harmonic mean of frozen factual_precision and recall_at_k; zero when recall_at_k is zero",
+    "paired_comparisons": [
+      {
+        "name": "b_minus_a",
+        "treatment": "b",
+        "baseline": "a",
+        "display_name": "B - A"
+      },
+      {
+        "name": "d_minus_c",
+        "treatment": "d2",
+        "baseline": "c",
+        "display_name": "D - C"
+      }
+    ],
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20260809,
+    "confidence_level": 0.95,
+    "sampling_unit": "response_id",
+    "interval_method": "paired response percentile bootstrap"
+  },
+  "outputs": {
+    "summary_json": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/reports/X3_veriscore_k_sensitivity_heldout_summary.json",
+    "report_markdown": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/reports/X3_veriscore_k_sensitivity_heldout.md",
+    "condition_csv": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/reports/X3_veriscore_k_sensitivity_condition_means_heldout.csv",
+    "contrast_csv": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/reports/X3_veriscore_k_sensitivity_paired_contrasts_heldout.csv",
+    "figure_png": "outputs/factcheck_bench_full/cove/external_evaluation/veriscore/figures/X3_veriscore_k_sensitivity_heldout.png"
+  },
+  "interpretation": {
+    "primary_k_unchanged": true,
+    "no_post_hoc_k_selection": true,
+    "no_new_model_calls": true,
+    "no_new_retrieval_calls": true,
+    "evidence_strength": "EXTERNAL_AUTOMATIC_RESPONSE_LEVEL_SUPPLEMENT",
+    "not_human_gold_transition_validation": true
+  }
+}

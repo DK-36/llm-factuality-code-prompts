@@ -8,8 +8,7 @@ its artifacts:
 * Branch B answers the same frozen B1 questions with frozen Hybrid evidence,
   then revises the original response with the same Q&A revision prompt.
 * Branch C gives the frozen Branch A response one generic extra revision call.
-* Branch D uses the bounded D2 implementation to give the frozen Branch A
-  response one evidence-guided targeted revision call.
+* Branch D uses the bounded implementation stored under the frozen ``d2`` artifact namespace to give the frozen Branch A response one evidence-guided targeted revision call.
 
 Every branch has a separate output directory and a branch-specific run
 fingerprint. Gold labels, qrels, benchmark evidence, and gold URL mappings are
@@ -62,7 +61,9 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 BRANCH_CONFIG_SCHEMA = "fcb_cove_branch_experiment_config_v1"
 BRANCH_D2_CONFIG_SCHEMA = "fcb_cove_branch_d2_config_v1"
-BRANCHES = ("a", "b", "c", "d")
+# The parent configuration has keys a/b/c/d. Its ``d`` entry defines the deterministic candidate-selection precursor; the dissertation's executed Branch D is serialized as ``d2`` to preserve compatibility with the frozen artifact schema.
+BRANCH_CONFIG_KEYS = ("a", "b", "c", "d")
+ACTIVE_BRANCH_D_ARTIFACT_ID = "d2"
 REVISION_FALLBACK_POLICY_VERSION = (
     "preserve_branch_base_on_unrecoverable_revision_v1"
 )
@@ -167,7 +168,7 @@ def targeted_feedback_candidates_path(split: str) -> Path:
 
 def bounded_targeted_feedback_path(split: str) -> Path:
     return (
-        cove_paths(PROJECT_ROOT, "full", "d2").jsonl_dir
+        cove_paths(PROJECT_ROOT, "full", ACTIVE_BRANCH_D_ARTIFACT_ID).jsonl_dir
         / f"D2_compact_selective_feedback_{split}.jsonl"
     )
 
@@ -180,7 +181,7 @@ def branch_report_path(branch: str, split: str) -> Path:
 
 
 def branch_settings(config: Mapping[str, Any], branch: str) -> dict[str, Any]:
-    if branch == "d2":
+    if branch == ACTIVE_BRANCH_D_ARTIFACT_ID:
         d2_config = config.get("_branch_d2_config")
         settings = (
             d2_config.get("branch")
@@ -188,7 +189,7 @@ def branch_settings(config: Mapping[str, Any], branch: str) -> dict[str, Any]:
             else None
         )
         if not isinstance(settings, dict):
-            raise ValueError("Branch D v2 configuration is missing")
+            raise ValueError("Active Branch D configuration is missing")
         return settings
     settings = config["branches"].get(branch)
     if not isinstance(settings, dict):
@@ -205,22 +206,22 @@ def load_branch_config() -> tuple[Path, dict[str, Any]]:
         )
     if config.get("scope") != "full":
         raise ValueError("The controlled CoVe branch experiment is full-scope")
-    if set(config.get("branches", {})) != set(BRANCHES):
+    if set(config.get("branches", {})) != set(BRANCH_CONFIG_KEYS):
         raise ValueError("Branch config must define exactly branches a/b/c/d")
     d2_path = branch_d2_config_path()
     d2_config = load_json(d2_path)
     if d2_config.get("schema_version") != BRANCH_D2_CONFIG_SCHEMA:
         raise ValueError(
-            "Unsupported Branch D v2 config schema: "
+            "Unsupported active Branch D config schema: "
             f"{d2_config.get('schema_version')}"
         )
     if d2_config.get("scope") != "full":
-        raise ValueError("The Branch D v2 experiment is full-scope")
+        raise ValueError("The active Branch D experiment is full-scope")
     if d2_config.get("parent_branch_config_path") != project_relative(path):
-        raise ValueError("Branch D v2 parent config path is inconsistent")
+        raise ValueError("Active Branch D parent config path is inconsistent")
     d2 = d2_config.get("branch")
     if not isinstance(d2, dict):
-        raise ValueError("Branch D v2 config must define branch")
+        raise ValueError("Active Branch D config must define branch")
     for positive_integer_field in (
         "maximum_feedback_claims_per_response",
         "maximum_passages_per_claim",
@@ -685,7 +686,7 @@ def build_status_markdown(summary: Mapping[str, Any]) -> str:
         "c": "Extra-revision control",
         "d": "Selective retrieval-verifier revision",
     }
-    for branch in BRANCHES:
+    for branch in BRANCH_CONFIG_KEYS:
         group = artifacts[f"branch_{branch}"]
         revision = (
             group.get("standard_revision")
@@ -1583,7 +1584,7 @@ def _revision_units(
             ["original_question", "frozen_branch_a_response"],
             settings["withheld_fields"],
         )
-    if branch == "d2":
+    if branch == ACTIVE_BRANCH_D_ARTIFACT_ID:
         _, responses, a_revisions = load_branch_a_revisions(split)
         source_by_id = {row["response_id"]: row for row in responses}
         a_revision_by_id = {row["response_id"]: row for row in a_revisions}
@@ -1594,7 +1595,7 @@ def _revision_units(
         }
         if set(feedback_by_response) != set(source_by_id):
             raise ValueError(
-                "Branch D v2 compact feedback must contain every response"
+                "Active Branch D compact feedback must contain every response"
             )
         for response_id, source in source_by_id.items():
             a_row = a_revision_by_id[response_id]
@@ -1693,14 +1694,14 @@ def run_branch_revision(
         "branch_config_sha256": sha256_file(config_path),
         "branch_a_revision_sha256": (
             sha256_file(branch_a_revision_path)
-            if branch in {"c", "d2"}
+            if branch in {"c", ACTIVE_BRANCH_D_ARTIFACT_ID}
             else None
         ),
         "intervention_artifact_sha256": sha256_file(intervention_path),
         "model_input_fields": input_fields,
         "withheld_fields": withheld,
     }
-    if branch == "d2":
+    if branch == ACTIVE_BRANCH_D_ARTIFACT_ID:
         payload["branch_d2_config_sha256"] = sha256_file(
             branch_d2_config_path()
         )
@@ -1835,11 +1836,11 @@ def run_branch_revision(
             "ollama_metadata": metadata,
             "created_at": utc_now(),
         }
-        if branch == "d2":
+        if branch == ACTIVE_BRANCH_D_ARTIFACT_ID:
             base["selected_feedback_count"] = len(
                 unit.get("selected_feedback", unit.get("compact_feedback", []))
             )
-        if branch == "d2":
+        if branch == ACTIVE_BRANCH_D_ARTIFACT_ID:
             base["source_selected_feedback_count"] = unit[
                 "selected_feedback_count"
             ]
@@ -1950,10 +1951,10 @@ def run_branch_revision(
         "stage": payload["stage"],
         "status": (
             "complete"
-            if complete and (branch != "d2" or intervention_valid)
+            if complete and (branch != ACTIVE_BRANCH_D_ARTIFACT_ID or intervention_valid)
             else (
                 "intervention_execution_failed"
-                if branch == "d2" and complete
+                if branch == ACTIVE_BRANCH_D_ARTIFACT_ID and complete
                 else "incomplete"
             )
         ),
@@ -1994,10 +1995,11 @@ def run_branch_revision(
         "output": project_relative(output_path),
     }
     atomic_write_json(branch_report_path(branch, split), summary)
-    return 0 if complete and (branch != "d2" or intervention_valid) else 2
+    return 0 if complete and (branch != ACTIVE_BRANCH_D_ARTIFACT_ID or intervention_valid) else 2
 
 
 def prepare_targeted_feedback_candidates(split: str, *, dry_run: bool) -> int:
+    """Derive Branch D candidate claims from frozen Branch A B6c diagnostics without a model call."""
     config_path, config = load_branch_config()
     settings = config["branches"]["d"]
     a_paths = cove_paths(PROJECT_ROOT, "full", "a")
@@ -2087,7 +2089,7 @@ def prepare_targeted_feedback_candidates(split: str, *, dry_run: bool) -> int:
                     "B6c_evidence_sha256": sha256_file(
                         a_paths.revised_claim_evidence(split)
                     ),
-                    "B6d_audit_sha256": sha256_file(
+                    "post_revision_factuality_audit_sha256": sha256_file(
                         a_paths.factuality_audit_manifest(split)
                     ),
                     "branch_config_sha256": sha256_file(config_path),
@@ -2163,19 +2165,17 @@ def prepare_bounded_targeted_feedback(
     *,
     dry_run: bool,
 ) -> int:
-    """Create a bounded, response-level Branch D v2 intervention artifact.
+    """Create the bounded, response-level artifact used by the dissertation's Branch D.
 
-    This stage makes no model calls. It preserves the frozen v1 eligibility
-    decisions, then deterministically limits how much of that feedback a
-    revision call can see. The v1 artifact remains untouched.
+    This stage makes no model calls. It preserves the deterministic candidate-selection decisions and limits the feedback visible to the single targeted revision call. The serialized ``d2`` name is an internal compatibility identifier, not a fifth branch or a superseded reported condition.
     """
 
     config_path, config = load_branch_config()
-    settings = branch_settings(config, "d2")
+    settings = branch_settings(config, ACTIVE_BRANCH_D_ARTIFACT_ID)
     source_path = targeted_feedback_candidates_path(split)
     if not source_path.exists():
         raise FileNotFoundError(
-            "Prepare the frozen Branch D v1 feedback before Branch D v2: "
+            "Prepare the Branch D candidate-selection artifact before bounding the active Branch D feedback: "
             f"{source_path}"
         )
     source_rows = load_jsonl(source_path)
@@ -2186,7 +2186,7 @@ def prepare_bounded_targeted_feedback(
     } - expected_response_ids
     if unexpected:
         raise ValueError(
-            f"Legacy feedback contains unexpected responses: {sorted(unexpected)}"
+            f"Branch D candidate feedback contains unexpected responses: {sorted(unexpected)}"
         )
 
     selected_by_response: defaultdict[str, list[dict[str, Any]]] = defaultdict(
@@ -2302,7 +2302,7 @@ def prepare_bounded_targeted_feedback(
         output_rows.append(
             {
                 "schema_version": "cove_branch_d2_compact_feedback_v1",
-                "branch_id": "d2",
+                "branch_id": ACTIVE_BRANCH_D_ARTIFACT_ID,
                 "response_id": response_id,
                 "source_record_index": response["source_record_index"],
                 "split": split,
@@ -2394,7 +2394,7 @@ def prepare_bounded_targeted_feedback(
         return 0
     atomic_write_jsonl(output_path, output_rows)
     report_path = (
-        cove_paths(PROJECT_ROOT, "full", "d2").reports_dir
+        cove_paths(PROJECT_ROOT, "full", ACTIVE_BRANCH_D_ARTIFACT_ID).reports_dir
         / f"branch_d2_feedback_{split}_summary.json"
     )
     atomic_write_json(report_path, summary)
@@ -2675,7 +2675,7 @@ def _branch_d_target_strata(split: str) -> dict[str, Any]:
                 ).initial_claim_outcomes(split)
             )
         }
-        for branch in ("a", "c", "d2")
+        for branch in ("a", "c", ACTIVE_BRANCH_D_ARTIFACT_ID)
     }
     all_ids = set(branch_rows["a"])
 
@@ -2717,7 +2717,7 @@ def _branch_d_target_strata(split: str) -> dict[str, Any]:
 
 
 def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
-    d2 = analysis["branch_metrics"]["d2"]
+    d2 = analysis["branch_metrics"][ACTIVE_BRANCH_D_ARTIFACT_ID]
     c = analysis["branch_metrics"]["c"]
     d2_minus_c = analysis["paired_contrasts"]["d2_minus_c"]
     target_strata = analysis["target_strata"]
@@ -2734,7 +2734,7 @@ def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
         "## Execution and evaluation checks",
         "",
         (
-            f"- D-v2 produced {analysis['execution_gate']['usable_revisions']}"
+            f"- Branch D produced {analysis['execution_gate']['usable_revisions']}"
             " usable revisions with "
             f"{analysis['execution_gate']['fallbacks']} fallbacks; the "
             "intervention-execution gate passed."
@@ -2751,7 +2751,7 @@ def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
             "recalled; this response remains audit-required."
         ),
         (
-            f"- B6d flagged {quality['b6d_deterministic_flagged_claims']} "
+            f"- The post-revision audit flagged {quality['post_revision_audit_flagged_claims']} "
             "label/rationale policy inconsistencies without changing raw "
             "labels."
         ),
@@ -2769,13 +2769,13 @@ def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
         "Factual deleted | Added errors |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
-    for branch in ("a", "b", "c", "d2"):
+    for branch in ("a", "b", "c", ACTIVE_BRANCH_D_ARTIFACT_ID):
         metric = analysis["branch_metrics"][branch]
         lines.append(
             "| "
             + " | ".join(
                 [
-                    "D" if branch == "d2" else branch.upper(),
+                    "D" if branch == ACTIVE_BRANCH_D_ARTIFACT_ID else branch.upper(),
                     str(metric["revised_claim_count"]),
                     f"{100 * metric['resolved_factual_proportion_micro']:.1f}%",
                     (
@@ -2798,7 +2798,7 @@ def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
             "",
         ]
     )
-    for key in ("d2_minus_a", "d2_minus_c", "d2_minus_b"):
+    for key in ("d2_minus_c",):
         item = analysis["paired_contrasts"][key]
         lines.append(
             f"- {key}: error net **{item['net_beneficial_error_change']:+d}**, "
@@ -2948,9 +2948,9 @@ def _research_analysis_markdown(analysis: Mapping[str, Any]) -> str:
 
 def build_branch_d_research_analysis(split: str) -> dict[str, Any]:
     generation_report = load_json(
-        branch_report_path("d2", split)
+        branch_report_path(ACTIVE_BRANCH_D_ARTIFACT_ID, split)
     )
-    d2_paths = cove_paths(PROJECT_ROOT, "full", "d2")
+    d2_paths = cove_paths(PROJECT_ROOT, "full", ACTIVE_BRANCH_D_ARTIFACT_ID)
     extraction_report = load_json(
         d2_paths.revised_claim_extraction_summary_json(split)
     )
@@ -2972,7 +2972,7 @@ def build_branch_d_research_analysis(split: str) -> dict[str, Any]:
         "status": "complete",
         "split": split,
         "research_condition_label": "Branch D",
-        "implementation_version": "D-v2",
+        "implementation_version": "bounded_targeted_revision_v1",
         "artifact_namespace": "d2",
         "frozen_version_fingerprints": {
             "branch_config_sha256": sha256_file(branch_config_path()),
@@ -3029,7 +3029,7 @@ def build_branch_d_research_analysis(split: str) -> dict[str, Any]:
             "b6c_successful_claims": factuality_report.get(
                 "successful_revised_claims"
             ),
-            "b6d_deterministic_flagged_claims": audit_report.get(
+            "post_revision_audit_flagged_claims": audit_report.get(
                 "deterministic_flagged_claims"
             ),
             "raw_factuality_labels_changed": audit_report.get(
@@ -3038,12 +3038,10 @@ def build_branch_d_research_analysis(split: str) -> dict[str, Any]:
         },
         "branch_metrics": {
             branch: _research_branch_metrics(branch, split)
-            for branch in ("a", "b", "c", "d2")
+            for branch in ("a", "b", "c", ACTIVE_BRANCH_D_ARTIFACT_ID)
         },
         "paired_contrasts": {
-            "d2_minus_a": _paired_research_contrast("a", "d2", split),
-            "d2_minus_c": _paired_research_contrast("c", "d2", split),
-            "d2_minus_b": _paired_research_contrast("b", "d2", split),
+            "d2_minus_c": _paired_research_contrast("c", ACTIVE_BRANCH_D_ARTIFACT_ID, split),
         },
         "target_strata": _branch_d_target_strata(split),
         "evaluation_tier": "same_protocol_silver_llm_assisted",
@@ -3056,7 +3054,7 @@ def build_branch_d_research_analysis(split: str) -> dict[str, Any]:
 def summarize_active_branches(split: str, *, dry_run: bool) -> int:
     """Summarize the active A/B/C/D comparison."""
 
-    active_branches = ("a", "b", "c", "d2")
+    active_branches = ("a", "b", "c", ACTIVE_BRANCH_D_ARTIFACT_ID)
     branch_results = {
         branch: _branch_outcome_summary(branch, split)
         for branch in active_branches
@@ -3093,7 +3091,7 @@ def summarize_active_branches(split: str, *, dry_run: bool) -> int:
             "A": "a",
             "B": "b",
             "C": "c",
-            "D": "d2",
+            "D": ACTIVE_BRANCH_D_ARTIFACT_ID,
         },
         "branches": branch_results,
         "research_branch_d_analysis": research_analysis,
@@ -3212,7 +3210,7 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.stage == "run-targeted-evidence-revision":
         return run_branch_revision(
-            "d2",
+            ACTIVE_BRANCH_D_ARTIFACT_ID,
             args.split,
             resume=args.resume,
             dry_run=args.dry_run,

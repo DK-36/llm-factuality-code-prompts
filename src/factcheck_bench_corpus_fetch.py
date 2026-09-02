@@ -1,4 +1,4 @@
-"""Safe, resumable source-document fetching for Experiment A.
+"""Safe, resumable source-document fetching for Study I.
 
 The corpus is *benchmark-grounded*: URLs come from the evaluation-only URL
 manifest, but claim/evidence labels are never used by this module.  Fetching is

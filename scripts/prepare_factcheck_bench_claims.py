@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare one unified pilot/full FactCheck-Bench claim benchmark."""
+"""Prepare the formal full-cohort FactCheck-Bench claim benchmark."""
 
 from __future__ import annotations
 
@@ -630,11 +630,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--scope",
         choices=SCOPES,
-        default="pilot",
-        help=(
-            "Resolve scope-specific defaults. pilot preserves historical paths; "
-            "full reads the complete raw benchmark and writes separate outputs."
-        ),
+        default="full",
+        help="Use the complete raw benchmark and the formal full-cohort paths.",
     )
 
     parser.add_argument(
@@ -694,25 +691,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--output, --report, and --manifest must be distinct")
     if args.input.resolve(strict=False) in destinations:
         parser.error("Refusing to overwrite the input file")
-    if args.scope == "full":
-        pilot = paths_for_scope(PROJECT_ROOT, "pilot")
-        pilot_output_root = pilot.output_root.resolve(strict=False)
-        protected_pilot_paths = {
-            pilot.gold_claims.resolve(strict=False),
-            pilot.cohort_manifest.resolve(strict=False),
-        }
-        collisions = [
-            path
-            for path in destinations
-            if path in protected_pilot_paths
-            or path == pilot_output_root
-            or pilot_output_root in path.parents
-        ]
-        if collisions:
-            parser.error(
-                "Full scope may not write pilot data or output paths: "
-                f"{sorted(str(path) for path in collisions)}"
-            )
     return args
 
 

@@ -28,7 +28,6 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from factcheck_bench_analysis import (  # noqa: E402
-    build_confidence_distribution,
     build_paired_transitions,
     build_response_aggregation,
     compute_binary_metrics,
@@ -773,7 +772,6 @@ def build_report(
         ),
         "retrieved_response_macro": response_macro,
         "retrieved_per_response": response_rows,
-        "retrieved_confidence": build_confidence_distribution(records, retrieved, 0.8),
         "technical_completion": {
             "technical_failure_count": metrics["retrieved_evidence"]["technical_failure_count"],
             "format_repair_count": len(repairs),
@@ -801,7 +799,7 @@ def build_report(
                 "remains unchanged."
             ),
             "Gold labels, qrels, evidence stances, and URL mappings were excluded from model input and joined only for evaluation.",
-            "Oracle evidence is benchmark-associated rather than guaranteed complete; benefit recovery is therefore diagnostic, not a causal decomposition.",
+            "Benchmark-associated evidence is not guaranteed complete; benefit recovery is therefore diagnostic, not a causal decomposition.",
             "Paired percentile confidence intervals resample response_id clusters and keep all claims from a response together.",
             "Retrieval-hit and evidence-stance strata are descriptive associations and use evaluation-only metadata.",
         ],
@@ -826,7 +824,7 @@ def markdown(report: dict[str, Any]) -> str:
             f"Status: **{report['status']}**. Cohort: {report['cohort']['claim_count']} claims "
             f"across {report['cohort']['response_count']} responses.",
             "",
-            "This is an isolated secondary sensitivity check. The formal Experiment A "
+            "This is an isolated secondary sensitivity check. The formal Study I "
             "Retrieved Evidence configuration remains Hybrid RRF top-5.",
             "",
             "## Retrieved Evidence results",
@@ -859,7 +857,7 @@ def markdown(report: dict[str, Any]) -> str:
         "| Setting | Accuracy | Balanced accuracy | Macro-F1 | Coverage |",
         "|---|---:|---:|---:|---:|",
     ]
-    for key, label in (("no_evidence", "No evidence"), ("oracle_evidence", "Oracle evidence"), ("retrieved_evidence", "Hybrid retrieved top-5")):
+    for key, label in (("no_evidence", "No evidence"), ("oracle_evidence", "Benchmark-associated evidence"), ("retrieved_evidence", "Hybrid retrieved top-5")):
         row = metrics[key]
         lines.append(f"| {label} | {pct(row['accuracy_including_abstentions_and_errors'])} | {pct(row['balanced_accuracy'])} | {pct(row['macro_f1'])} | {pct(row['coverage'])} |")
     lines.extend(
@@ -875,7 +873,7 @@ def markdown(report: dict[str, Any]) -> str:
             "|---|---:|---:|---:|---:|",
         ]
     )
-    for key, label in (("no_evidence", "No evidence"), ("oracle_evidence", "Oracle evidence"), ("retrieved_evidence", "Hybrid retrieved top-5")):
+    for key, label in (("no_evidence", "No evidence"), ("oracle_evidence", "Benchmark-associated evidence"), ("retrieved_evidence", "Hybrid retrieved top-5")):
         intervals = bootstrap["setting_intervals"][key]
         lines.append(
             f"| {label} | {ci(intervals['accuracy'])} | "
@@ -890,9 +888,9 @@ def markdown(report: dict[str, Any]) -> str:
         ]
     )
     for key, label in (
-        ("oracle_minus_no_evidence", "Oracle - no evidence"),
+        ("oracle_minus_no_evidence", "Benchmark-associated - no evidence"),
         ("retrieved_minus_no_evidence", "Retrieved - no evidence"),
-        ("retrieved_minus_oracle", "Retrieved - oracle"),
+        ("retrieved_minus_oracle", "Retrieved - benchmark-associated"),
     ):
         intervals = bootstrap["paired_difference_intervals"][key]["metrics"]
         lines.append(
@@ -904,7 +902,7 @@ def markdown(report: dict[str, Any]) -> str:
             f"{ci(intervals['macro_f1'])} |"
         )
     lines.extend(["", "## Paired changes", ""])
-    for key, label in (("no_evidence_to_retrieved", "No evidence → retrieved"), ("oracle_to_retrieved", "Oracle → retrieved")):
+    for key, label in (("no_evidence_to_retrieved", "No evidence → retrieved"), ("oracle_to_retrieved", "Benchmark-associated → retrieved")):
         named = report["paired_transitions"][key]["named_transitions"]
         lines.append(f"- {label}: wrong→correct {named['wrong_to_correct']['count']}; correct→wrong {named['correct_to_wrong']['count']}; wrong→wrong {named['wrong_to_wrong']['count']}.")
     lines.extend(["", "## Retrieval-conditioned verifier accuracy", ""])
@@ -918,7 +916,7 @@ def markdown(report: dict[str, Any]) -> str:
             "",
             "Within a single gold-label stratum, accuracy is that class's recall.",
             "",
-            "| Gold label | Claims | No evidence | Oracle | Retrieved |",
+            "| Gold label | Claims | No evidence | Benchmark-associated | Retrieved |",
             "|---|---:|---:|---:|---:|",
         ]
     )
@@ -933,7 +931,7 @@ def markdown(report: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "| Retrieval stratum | Claims | No evidence acc. | Oracle acc. | Retrieved acc. |",
+            "| Retrieval stratum | Claims | No evidence acc. | Benchmark-associated acc. | Retrieved acc. |",
             "|---|---:|---:|---:|---:|",
         ]
     )
@@ -956,7 +954,7 @@ def markdown(report: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "| Gold evidence stance bundle | Claims | No evidence acc. | Oracle acc. | Retrieved acc. |",
+            "| Gold evidence stance bundle | Claims | No evidence acc. | Benchmark-associated acc. | Retrieved acc. |",
             "|---|---:|---:|---:|---:|",
         ]
     )
